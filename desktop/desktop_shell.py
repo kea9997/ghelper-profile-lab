@@ -104,4 +104,3 @@ class DesktopShell:
                 self.tray.stop()
             if self._watcher:
                 self._watcher.join(timeout=2)
-

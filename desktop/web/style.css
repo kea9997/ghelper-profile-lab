@@ -233,7 +233,7 @@
       .mode-step { padding: 8px; }
       .details-list, .detail-list { grid-template-columns: 83px minmax(0, 1fr); gap: 8px; }
     }
-  
+
     .notice.warn{background:#332c24;border-color:#60513d;color:#e0c7a7}
     .notice.error{background:#34262d;border-color:#66414c;color:#ecc0c7}
     .next-action{margin-top:18px;padding:6px 0 6px 14px}
@@ -248,7 +248,7 @@
     .modal-body ol{padding-left:22px;margin:0}
     .modal-body li+li{margin-top:8px}
     .saved-main>details .btn{align-self:start;justify-self:start}
-  
+
     #prepare-again { margin-bottom: 12px; }
     #benchmark-progress-panel.finished > .row,
     #benchmark-progress-panel.finished > details,
@@ -258,7 +258,7 @@
     #benchmark-progress-panel.finished .next-action h3 { font-size: 16px; }
     #benchmark-progress-panel.finished { margin-top: 0; padding: 14px 18px; }
     .steps li::marker { content: ''; }
-    
+
     .capture-actions { margin-bottom: 8px; }
     .settings-visual { margin-top: 22px; }
     #hardware-summary { max-width: 800px; font-size: 12px; line-height: 1.7; }
