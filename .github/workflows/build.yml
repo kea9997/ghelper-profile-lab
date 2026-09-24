@@ -1,0 +1,72 @@
+name: Test and build Windows app
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          architecture: x64
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Create Python environment
+        run: python -m venv build/.venv
+
+      - name: Install desktop requirements
+        run: ./build/.venv/Scripts/python.exe -m pip install -r desktop/requirements.txt
+
+      - name: Run Python regression tests
+        working-directory: desktop
+        run: ../build/.venv/Scripts/python.exe -m unittest discover -s tests -v
+
+      - name: Run API regression tests
+        working-directory: api
+        run: node --test test/worker.test.mjs
+
+      - name: Run settings view regression tests
+        run: node desktop/tests/settings-view-tests.cjs
+
+      - name: Build executable and ZIP
+        run: ./scripts/build.ps1 -PythonExecutable python
+
+      - name: Upload tested build
+        uses: actions/upload-artifact@v7
+        with:
+          name: GHelperProfileLab-windows-x64
+          path: |
+            dist/GHelperProfileLab.exe
+            dist/GHelperProfileLab-windows-x64.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      # Publishing a GitHub Release is a separate, explicit maintainer action.

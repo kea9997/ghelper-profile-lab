@@ -1,0 +1,55 @@
+/* Namespaced, read-only settings visualization; no global style overrides. */
+.ps-view{--ps-cpu:#8cbbe8;--ps-gpu:#d6b286;--ps-mid:#bbd68d;color:var(--text,#edf0f2);font-size:13px;min-width:0}
+.ps-view *{box-sizing:border-box}
+.ps-intro{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:15px}
+.ps-modes{display:flex;gap:5px;padding:4px;border:1px solid var(--line,#343e49);border-radius:10px;background:var(--field,#161c22)}
+.ps-view .ps-mode{appearance:none;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--muted,#a7b1bc);padding:8px 23px;font:inherit;font-weight:650;cursor:pointer;min-height:37px;line-height:1.4}
+.ps-view .ps-mode:hover{color:var(--text,#edf0f2);background:var(--raised,#242c35)}
+.ps-view .ps-mode[aria-pressed=true]{background:var(--accent,#c3df82);color:var(--accent-ink,#202b14)}
+.ps-mode:focus-visible,.ps-curve-values summary:focus-visible{outline:2px solid var(--accent,#c3df82);outline-offset:3px}
+.ps-view .ps-hint{color:var(--muted,#a7b1bc);font-size:12px;line-height:1.6;margin:12px 0 0}
+.ps-intro .ps-hint{margin:0;flex:1;min-width:180px}
+.ps-caption{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.ps-caption strong{font-size:15px}.ps-caption span{color:var(--muted,#a7b1bc);font-size:11px}
+.ps-grid-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.ps-card{min-width:0;border:1px solid var(--line,#343e49);border-radius:10px;background:var(--surface,#1c2229);padding:17px}
+.ps-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.ps-view .ps-card h4{font-size:14px;margin:0;line-height:1.4}
+.ps-device{font-size:11px;color:var(--muted,#a7b1bc);margin:0 0 17px;overflow-wrap:anywhere;line-height:1.5}
+.ps-badge{font-size:10px;white-space:nowrap;border:1px solid var(--line,#343e49);border-radius:5px;padding:3px 6px;color:var(--muted,#a7b1bc);background:var(--field,#161c22)}
+.ps-badge.ps-on{color:var(--accent,#c3df82);border-color:#556941}
+.ps-metric{margin:15px 0 0}.ps-metric-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;line-height:1.45}
+.ps-label{color:var(--muted,#a7b1bc);font-size:12px}.ps-value{font-weight:650;text-align:right;font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ps-gauge{display:block;width:100%;height:4px;margin-top:8px;overflow:visible;pointer-events:none}
+.ps-gauge-track{fill:var(--line,#343e49)}.ps-gauge-fill{fill:var(--accent,#c3df82)}.ps-gauge-zero{stroke:var(--muted,#a7b1bc);stroke-width:.45}
+.ps-inactive .ps-gauge-fill{fill:#778491}.ps-inactive .ps-value{color:#c0c7ce}
+.ps-system{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:16px 0}
+.ps-summary-row{display:flex;flex-direction:column;gap:5px;background:var(--field,#161c22);padding:12px 15px;border-radius:8px;min-width:0;overflow-wrap:anywhere}
+.ps-summary-row>span{font-size:11px;color:var(--muted,#a7b1bc)}.ps-summary-row strong{font-size:13px;font-weight:600}
+.ps-view .ps-default{color:var(--muted,#a7b1bc);font-size:12px;font-weight:500}.ps-view .ps-invalid,.ps-view .ps-error{color:var(--orange,#e3c295);font-size:12px}
+.ps-fans{padding-bottom:15px}.ps-legend{display:flex;gap:15px;flex-wrap:wrap;margin:5px 0 10px}
+.ps-legend-item{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted,#a7b1bc)}
+.ps-swatch{width:13px;height:3px;background:currentColor;display:inline-block;flex:none}.ps-fan-cpu{--ps-series:var(--ps-cpu)}.ps-fan-gpu{--ps-series:var(--ps-gpu)}.ps-fan-mid{--ps-series:var(--ps-mid)}.ps-swatch{color:var(--ps-series)}
+.ps-fan-chart{display:block;width:100%;max-height:310px;margin:0 auto;overflow:visible;background:var(--field,#161c22);border-radius:7px;padding:8px}
+.ps-grid{stroke:var(--line,#343e49);stroke-width:.7}.ps-axis-tick,.ps-axis-label{fill:var(--muted,#a7b1bc);font-family:inherit;font-size:11px}.ps-axis-label{font-size:11px}
+.ps-curve{stroke:var(--ps-series);stroke-width:2.5;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
+.ps-point{fill:var(--surface,#1c2229);stroke:var(--ps-series);stroke-width:1.6;vector-effect:non-scaling-stroke}.ps-series-stored .ps-curve{stroke-dasharray:6 4}
+.ps-fan-empty{min-height:135px;display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed var(--line,#343e49);border-radius:8px;padding:20px;color:var(--muted,#a7b1bc);font-size:12px}
+.ps-curve-values{margin-top:10px;border:0;padding:0;background:transparent}.ps-curve-values summary{font-size:11px;cursor:pointer;color:var(--muted,#a7b1bc)}.ps-curve-values p{font-size:11px;line-height:1.8;color:var(--muted,#a7b1bc);margin:8px 0 0}.ps-curve-values strong{color:var(--text,#edf0f2)}
+.ps-other-values{margin-top:16px;border:0;border-top:1px solid var(--line,#343e49);padding:10px 0 0;background:transparent}.ps-other-values summary{font-size:11px;color:var(--muted,#a7b1bc);cursor:pointer}.ps-other-values .ps-hint{font-size:11px;margin-top:8px}.ps-other-values .ps-label{font-size:11px}
+.ps-compact .ps-card{padding:13px}.ps-compact .ps-intro{margin-bottom:11px}.ps-compact .ps-mode{padding:6px 18px}.ps-compact .ps-metric{margin-top:12px}.ps-compact .ps-fan-chart{max-height:255px}
+@media(max-width:650px){.ps-grid-cards{grid-template-columns:1fr}.ps-intro{gap:8px}.ps-system{grid-template-columns:1fr}.ps-view .ps-mode{padding:8px 20px}.ps-value{font-size:13px}.ps-fan-chart{padding:3px}}
+/* Put the fan curve beside power settings so it is visible without a long scroll. */
+@media(min-width:820px){
+  #current-visual .ps-content{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+  #current-visual .ps-caption{grid-column:1/-1;margin-bottom:0}
+  #current-visual .ps-grid-cards{grid-column:1;grid-row:2/4;display:flex;flex-direction:column}
+  #current-visual .ps-fans{grid-column:2;grid-row:2}
+  #current-visual .ps-system{grid-column:2;grid-row:3;display:flex;flex-direction:column;padding:0;gap:8px}
+  #current-visual .ps-device{display:none}
+  #current-visual .ps-card{padding:14px}
+  #current-visual .ps-metric{margin-top:10px}
+  #current-visual .ps-gauge{margin-top:5px}
+  #current-visual .ps-hint{font-size:11px}
+  #current-visual .ps-legend{gap:8px}
+}
