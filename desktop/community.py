@@ -284,17 +284,22 @@ class CommunityService:
         except (URLError, OSError, TimeoutError, http.client.HTTPException):
             raise ValueError("공유 자료실에 연결하지 못했습니다. 연결을 확인하고 같은 요청을 다시 시도하세요.") from None
 
-    def browse(self, model="", cursor=None):
+    def browse(self, model="", cursor=None, query=""):
         model = _text(model, 200)
         if any(ord(c) < 32 for c in model):
             raise ValueError("모델 검색어 형식이 올바르지 않습니다.")
+        query_text = _text(query, 160)
+        if any(ord(c) < 32 for c in query_text):
+            raise ValueError("기기 사양 검색어 형식이 올바르지 않습니다.")
         cursor = _cursor(cursor)
-        query = {"limit": 30}
+        parameters = {"limit": 30}
         if model:
-            query["model"] = model
+            parameters["model"] = model
+        if query_text:
+            parameters["q"] = query_text
         if cursor is not None:
-            query["cursor"] = cursor
-        response = self._request("GET", "/api/profiles?" + urlencode(query))
+            parameters["cursor"] = cursor
+        response = self._request("GET", "/api/profiles?" + urlencode(parameters))
         posts = response.get("posts")
         if not isinstance(posts, list) or len(posts) > 30:
             raise _invalid()

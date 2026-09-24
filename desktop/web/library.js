@@ -2,22 +2,49 @@
 const library={posts:[],cursor:null,loaded:false,loading:false,error:'',owned:[],request:0};
 let librarySearchTimer;
 function compatibleHardware(h){return !!state&&['model','cpu','gpu'].every(k=>h?.[k]&&JSON.stringify(h[k])===JSON.stringify(state.hardware[k]));}
+const productAliases=[
+  {models:['GU605CX','GU605CW','GU605CR','GU605CM'],family:'ROG 제피러스 G16',english:'ROG Zephyrus G16',year:'2025'},
+  {models:['GU605MI','GU605MY','GU605MZ'],family:'ROG 제피러스 G16',english:'ROG Zephyrus G16',year:'2024'},
+  {models:['GA403UI'],family:'ROG 제피러스 G14',english:'ROG Zephyrus G14',year:'2024'},
+  {models:['GZ302EA'],family:'ROG 플로우 Z13',english:'ROG Flow Z13',year:'2025'}
+];
+function productAlias(h){return productAliases.find(entry=>entry.models.includes(String(h?.model||'').toUpperCase()));}
+function shortGpu(h){
+  const values=Array.isArray(h?.gpu)?h.gpu:typeof h?.gpu==='string'?[h.gpu]:[];
+  const name=values.find(x=>/NVIDIA/i.test(x))||values.find(x=>/AMD Radeon/i.test(x))||values[0]||'';
+  const match=name.match(/\b(?:RTX|GTX)\s*\d{4}\s*(?:Ti)?/i)||name.match(/\bRadeon\s+(?:RX\s+)?[\w+]+/i);
+  return match?.[0]?.replace(/\s+/g,' ').trim()||name.replace(/^(?:NVIDIA|AMD)\s+/i,'').replace(/\s+(?:Laptop GPU|Graphics)$/i,'').trim();
+}
+function displayHardware(h){
+  const alias=productAlias(h),model=alias?alias.family+' '+alias.year:(h?.model||'모델 정보 없음');
+  const specs=[model,shortGpu(h),h?.ram_gb?number(h.ram_gb)+' GB':'' ].filter(Boolean);
+  return specs.join(' \u00b7 ');
+}
+function searchTokens(value){
+  return value.normalize('NFKC').toLocaleLowerCase('ko-KR').replace(/([a-z])(?=\d)|(?<=\d)(?=[a-z])/gi,' ').replace(/[^\p{L}\p{N}]+/gu,' ').trim().split(/\s+/).filter(Boolean);
+}
+function searchableHardware(h){
+  const alias=productAlias(h),gpus=Array.isArray(h?.gpu)?h.gpu:typeof h?.gpu==='string'?[h.gpu]:[];
+  const specs=gpus.flatMap(gpu=>{const match=gpu.match(/\b(RTX|GTX)\s*(\d{4})\s*(Ti)?/i);return match?[match[1],match[2],match[3]]:[gpu];});
+  return [h?.model,h?.cpu,...specs,...gpus,h?.ram_gb&&number(h.ram_gb)+' GB',alias?.family,alias?.english,alias?.year,'Zephyrus','제피러스','제피루스'].filter(Boolean).join(' ').normalize('NFKC').toLocaleLowerCase('ko-KR');
+}
 function scheduleLibraryLoad(){if(state&&!library.loaded&&!library.loading)loadLibrary();}
 async function loadLibrary(more=false){
-  if(library.loading)return;
+  const request=++library.request,filter=$('library-search').value.trim(),modelFilter=$('library-compatible').checked&&state?.hardware.model?state.hardware.model:'';
   library.loading=true;library.error='';renderLibrary();
   try{
     const query=new URLSearchParams();
-    if($('library-compatible').checked&&state?.hardware.model)query.set('model',state.hardware.model);
+    if(modelFilter)query.set('model',modelFilter);
+    if(filter)query.set('q',filter);
     if(more&&library.cursor)query.set('cursor',library.cursor);
     const result=await api('/api/community/browse?'+query);
+    if(request!==library.request)return;
     const old=more?library.posts:[];
     const ids=new Set(old.map(p=>p.id));
     library.posts=old.concat(result.posts.filter(p=>!ids.has(p.id)));
     library.cursor=result.nextCursor||null;library.loaded=true;
-  }catch(e){library.error=e.message||'자료실을 불러오지 못했어요.';}
-  finally{library.loading=false;renderLibrary();}
-  await loadOwned();
+  }catch(e){if(request===library.request)library.error=e.message||'자료실을 불러오지 못했어요.';}
+  finally{if(request===library.request){library.loading=false;renderLibrary();await loadOwned();}}
 }
 function scoreStrip(runs){
   const strip=node('div',null,'score-strip');
@@ -36,8 +63,8 @@ function renderLibrary(){
   $('library-compatible').disabled=library.loading;
   $('library-more').disabled=library.loading;
   $('library-more').hidden=!library.cursor;
-  const q=$('library-search').value.trim().toLocaleLowerCase('ko-KR'),matching=$('library-compatible').checked;
-  const posts=library.posts.filter(p=>(!matching||compatibleHardware(p.profile?.hardware))&&(!q||[p.profile?.name,p.profile?.hardware?.model,p.author,p.profile?.notes].join(' ').toLocaleLowerCase('ko-KR').includes(q)));
+  const q=$('library-search').value.trim(),tokens=searchTokens(q),matching=$('library-compatible').checked;
+  const posts=library.posts.filter(p=>(!matching||compatibleHardware(p.profile?.hardware))&&tokens.every(token=>[p.profile?.name,p.profile?.hardware?.model,p.author,p.profile?.notes,searchableHardware(p.profile?.hardware)].join(' ').normalize('NFKC').toLocaleLowerCase('ko-KR').includes(token)));
   const signature=JSON.stringify([posts,matching,q,library.error,library.loaded,library.loading,!!library.cursor]);
   $('library-status').textContent=library.loading?'설정을 불러오고 있어요…':library.error||posts.length+'개 · 점수와 소음은 사용자가 공유한 기록입니다.';
   if(cache.libraryCards===signature)return;cache.libraryCards=signature;list.replaceChildren();
@@ -52,14 +79,14 @@ function renderLibrary(){
   for(const post of posts){
     const p=post.profile,h=p.hardware,card=node('article',null,'library-card');
     const title=node('div',null,'row between');title.append(node('h3',p.name),pill(compatibleHardware(h)?'내 사양과 같음':'다른 사양',compatibleHardware(h)?'good':''));
-    card.append(title,node('p',h.model+' · '+post.author,'small muted'),node('p',p.notes||'설정 메모 없음','card-note'),scoreStrip(post.runs));
+    card.append(title,node('p',displayHardware(h),'device-spec-title'),node('p',[h.model,h.cpu,post.author].filter(Boolean).join(' · '),'small muted'),node('p',p.notes||'설정 메모 없음','card-note'),scoreStrip(post.runs));
     const view=button('설정 보기 · 적용',()=>act(view,()=>openCommunityPost(post.id)),'btn secondary');card.append(view);list.append(card);
   }
 }
 async function openCommunityPost(id){
   const {post}=await api('/api/community/post?id='+encodeURIComponent(id));
   const p=post.profile,h=p.hardware,body=node('div',null,'stack'),compatible=compatibleHardware(h);
-  body.append(node('p',post.author+' · '+date(post.createdAt),'small muted'),detailsList([['노트북',h.model],['CPU',h.cpu],['GPU',(h.gpu||[]).join(' / ')]]));
+  body.append(node('p',post.author+' · '+date(post.createdAt),'small muted'),detailsList([['제품명',displayHardware(h)],['모델 코드',h.model],['CPU',h.cpu],['GPU',(h.gpu||[]).join(' / ')]]));
   if(p.notes)body.append(node('p',p.notes));
   if(!compatible)body.append(notice('내 노트북과 기종·CPU·GPU가 달라 적용할 수 없어요.','warn'));
   body.append(scoreStrip(post.runs),node('p','사용자가 공유한 기록입니다. 같은 설정도 사용 환경에 따라 결과가 달라집니다.','small muted'));
@@ -113,7 +140,7 @@ async function prepareShare(){
   const profileId=p.id,runIds=[...publicSelection],author=$('public-author').value.trim()||'익명';
   const payload=await api('/api/community/prepare',{profileId,runIds,author});
   const body=node('div',null,'stack');
-  body.append(node('p','아래 내용을 공개 자료실에 올립니다.'),detailsList([['설정',payload.profile.name],['작성자',payload.author],['노트북',payload.profile.hardware.model],['함께 올릴 점수',payload.runs.length+'개'],['메모',payload.profile.notes||'없음']]));
+  body.append(node('p','아래 내용을 공개 자료실에 올립니다.'),detailsList([['설정',payload.profile.name],['작성자',payload.author],['제품명',displayHardware(payload.profile.hardware)],['모델 코드',payload.profile.hardware.model],['함께 올릴 점수',payload.runs.length+'개'],['메모',payload.profile.notes||'없음']]));
   if(payload.runs.length)body.append(scoreStrip(payload.runs));
   for(const r of payload.runs)if(r.notes)body.append(node('p',modeName(r.mode)+' 측정 메모: '+r.notes,'small'));
   body.append(notice('공개하고 싶지 않은 이름이나 메모가 없는지 확인해 주세요.'));
@@ -132,7 +159,7 @@ async function prepareShare(){
 function initLibrary(){
   $('library-refresh').addEventListener('click',()=>loadLibrary());
   $('library-more').addEventListener('click',()=>loadLibrary(true));
-  $('library-search').addEventListener('input',()=>{clearTimeout(librarySearchTimer);librarySearchTimer=setTimeout(renderLibrary,120);});
+  $('library-search').addEventListener('input',()=>{clearTimeout(librarySearchTimer);renderLibrary();librarySearchTimer=setTimeout(()=>{library.posts=[];library.cursor=null;library.loaded=false;loadLibrary();},350);});
   $('library-compatible').addEventListener('change',resetLibraryFilter);
   $('open-publish').addEventListener('click',()=>openPublish().catch(report));
   $('publish-close').addEventListener('click',()=>$('publish-modal').close());

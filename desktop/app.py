@@ -42,7 +42,7 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                 elif parsed.path.startswith('/api/community/'):
                     if community is None: raise ValueError('자료실 연결을 사용할 수 없습니다.')
                     qs=parse_qs(parsed.query)
-                    if parsed.path=='/api/community/browse': self.send(community.browse(qs.get('model',[''])[0],qs.get('cursor',[None])[0]))
+                    if parsed.path=='/api/community/browse': self.send(community.browse(qs.get('model',[''])[0],qs.get('cursor',[None])[0],qs.get('q',[''])[0]))
                     elif parsed.path=='/api/community/post': self.send(community.detail(qs.get('id',[''])[0]))
                     elif parsed.path=='/api/community/owned': self.send({'posts':community.owned()})
                     else: self.send({'error':'찾을 수 없습니다.'},404)

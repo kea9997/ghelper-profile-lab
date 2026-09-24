@@ -23,14 +23,14 @@
 | 요청 | 성공 응답 |
 | --- | --- |
 | `GET /api/health` | `200 {ok:true,service:"ghelper-profile-api",schemaVersion:1}`. DB 스키마 읽기도 확인 |
-| `GET /api/profiles?model=&cursor=&limit=30` | `200 {posts:[...],nextCursor:null 또는 문자열}` |
+| `GET /api/profiles?model=&q=&cursor=&limit=30` | `200 {posts:[...],nextCursor:null 또는 문자열}` |
 | `GET /api/profiles/{uuid}` | `200 {post:{...}}` |
 | `POST /api/profiles` | 최초 `201 {id,createdAt,replayed:false}`, 재시도 `200 {id,createdAt,replayed:true}` |
 | `DELETE /api/profiles/{uuid}` | `200 {deleted:true}` |
 
 목록과 상세의 post는 정규화된 공유 bundle 최상위에 `id`, `createdAt`을 더한 형식입니다. 삭제 키, 삭제 해시, 요청 키, 내부 payload 해시는 공개하지 않습니다. `createdAt`은 서버가 생성한 UTC ISO 날짜입니다. 목록 순서는 `createdAt DESC, id DESC`이며 같은 밀리초의 게시물도 중복·누락 없이 페이지를 이어갑니다.
 
-`model`은 양끝 공백을 제거한 정확한 대소문자 구분 일치입니다. 비어 있거나 생략하면 전체 모델입니다. 모델 길이는 200 UTF-16 코드 단위 이하입니다. `limit`은 1~30이며 기본 30입니다. 알 수 없는 쿼리 이름, 중복 쿼리 이름, 범위 밖 limit은 400입니다. 처음 요청에서는 cursor를 생략하세요. 이후 서버가 준 커서를 그대로 사용하고 model 필터를 유지하세요. 다음 페이지가 없으면 `nextCursor`는 null입니다. UUID는 소문자 표준 8-4-4-4-12 형식, 버전 1~8, RFC variant를 허용합니다. 새 요청 키는 UUIDv4가 적합합니다.
+`q`는 앱 내 검색어(최대 160자, 12개 단어)이며 공유된 모델 코드·제품군 별칭·연도·프로필 이름·메모·CPU·GPU·메모리를 찾습니다. `RTX5090`과 `RTX 5090` 모두 검색할 수 있습니다. 이름이 등록된 ASUS 모델만 `G16 2025` 같은 제품군으로 확장하며, GPU 조건도 실제 게시 사양과 맞아야 합니다. 검색 조건은 다음 페이지 커서에 묶입니다. `model`은 양끝 공백을 제거한 정확한 대소문자 구분 일치입니다. 비어 있거나 생략하면 전체 모델입니다. 모델 길이는 200 UTF-16 코드 단위 이하입니다. `limit`은 1~30이며 기본 30입니다. 알 수 없는 쿼리 이름, 중복 쿼리 이름, 범위 밖 limit은 400입니다. 처음 요청에서는 cursor를 생략하세요. 이후 서버가 준 커서를 그대로 사용하고 model 필터를 유지하세요. 다음 페이지가 없으면 `nextCursor`는 null입니다. UUID는 소문자 표준 8-4-4-4-12 형식, 버전 1~8, RFC variant를 허용합니다. 새 요청 키는 UUIDv4가 적합합니다.
 
 ### 게시와 네트워크 재시도
 

@@ -109,13 +109,67 @@ function validId(id) {
   return id;
 }
 
-function encodeCursor(row, model) {
-  const bytes = encoder.encode(JSON.stringify({ createdAt: row.created_at, id: row.id, model }));
+const PRODUCT_FAMILIES = [
+      { ids: ['GU605CX', 'GU605CW', 'GU605CR', 'GU605CM'], family: 'G16', year: '2025' },
+  { ids: ['GU605MI', 'GU605MY', 'GU605MZ'], family: 'G16', year: '2024' },
+  { ids: ['GA403UI'], family: 'G14', year: '2024' },
+  { ids: ['GZ302EA'], family: 'Z13', year: '2025' },
+];
+
+function searchQuery(value) {
+  if (typeof value !== 'string' || value.length > 160 || value.includes('\0')) {
+    fail(400, 'invalid_query', '검색어를 확인하세요.');
+  }
+  const normalized = value.normalize('NFKC').toLocaleLowerCase('ko-KR')
+    .replace(/\b(rtx|gtx)(?=\d)/gi, '$1 ').replace(/(?<=\d)(?=gb\b)/gi, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  if ([...normalized].length > 160) fail(400, 'invalid_query', '검색어를 확인하세요.');
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  if (tokens.length > 12 || tokens.some(token => [...token].length > 40)) {
+    fail(400, 'invalid_query', '검색어는 12개 단어까지 입력할 수 있습니다.');
+  }
+
+  const words = new Set(tokens);
+  const models = [];
+  const searchable = [];
+  const requestedYear = tokens.find(token => /^20\d{2}$/.test(token));
+  for (const item of PRODUCT_FAMILIES) {
+    const familyMatch = item.family === 'G16'
+      ? (words.has('g16') && (!requestedYear || words.has(item.year)))
+      : item.family === 'G14'
+        ? (words.has('g14') && (!requestedYear || words.has(item.year)))
+        : ((words.has('z13') || words.has('flow') || words.has('플로우')) && (!requestedYear || words.has(item.year)));
+    if (familyMatch) {
+      models.push(...item.ids);
+      for (const word of [item.family.toLowerCase(), item.year, 'zephyrus', '제피러스', '제피루스', 'rog', 'asus', 'flow', '플로우']) words.delete(word);
+    }
+  }
+  for (const item of PRODUCT_FAMILIES) {
+    const matches = item.ids.filter(model => [...words].includes(model.toLowerCase()));
+    if (matches.length) {
+      models.push(...matches);
+      for (const model of matches) words.delete(model.toLowerCase());
+      if (requestedYear === item.year) words.delete(item.year);
+    }
+  }
+  for (const word of words) {
+    if (/^rtx\d{4}(?:ti)?$/.test(word)) {
+      searchable.push(word.startsWith('rtx') ? 'rtx' : word.slice(0, 3), word.replace(/^rtx/, ''));
+    } else searchable.push(word);
+  }
+  const gpuToken = searchable.some(token => /^(?:rtx|gtx)$/.test(token)) &&
+    searchable.some(token => /^\d{4}(?:ti)?$/.test(token));
+  const explicitModels = models.length && gpuToken ? models : [];
+  return { normalized, tokens: [...new Set(searchable)], models: [...new Set(models)], explicitModels: [...new Set(explicitModels)] };
+}
+
+function encodeCursor(row, model, query) {
+  const bytes = encoder.encode(JSON.stringify({ createdAt: row.created_at, id: row.id, model, query }));
   return btoa(String.fromCharCode(...bytes))
     .replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
 }
 
-function decodeCursor(value, model) {
+function decodeCursor(value, model, query) {
   if (!value || value.length > 1600 || !/^[A-Za-z0-9_-]+$/.test(value)) {
     fail(400, 'invalid_cursor', '목록 커서가 올바르지 않습니다.');
   }
@@ -123,13 +177,13 @@ function decodeCursor(value, model) {
     const binary = atob(value.replaceAll('-', '+').replaceAll('_', '/'));
     const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
     const decoded = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-    if (!decoded || Object.keys(decoded).sort().join(',') !== 'createdAt,id,model' ||
-        typeof decoded.id !== 'string' || decoded.id.length !== 36 || !UUID.test(decoded.id) || decoded.model !== model ||
+    if (!decoded || Object.keys(decoded).sort().join(',') !== 'createdAt,id,model,query' ||
+        typeof decoded.id !== 'string' || decoded.id.length !== 36 || !UUID.test(decoded.id) || decoded.model !== model || decoded.query !== query ||
         typeof decoded.createdAt !== 'string' ||
         !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(decoded.createdAt) ||
         !Number.isFinite(Date.parse(decoded.createdAt))) throw new Error('Invalid cursor');
     return decoded;
-  } catch { fail(400, 'invalid_cursor', '목록 커서와 모델 필터를 확인하세요.'); }
+    } catch { fail(400, 'invalid_cursor', '목록 커서와 검색 조건을 확인하세요.'); }
 }
 
 function postFromRow(row) {
@@ -141,21 +195,39 @@ function postFromRow(row) {
 
 async function listProfiles(url, db) {
   for (const key of url.searchParams.keys()) {
-    if (!['model', 'cursor', 'limit'].includes(key) || url.searchParams.getAll(key).length !== 1) {
+    if (!['model', 'cursor', 'limit', 'q'].includes(key) || url.searchParams.getAll(key).length !== 1) {
       fail(400, 'invalid_query', '목록 검색 조건을 확인하세요.');
     }
   }
   const model = (url.searchParams.get('model') || '').trim();
   if (model.length > 200 || model.includes('\0')) fail(400, 'invalid_model', '모델 필터를 확인하세요.');
+  const query = searchQuery(url.searchParams.get('q') || '');
   const rawLimit = url.searchParams.get('limit') ?? String(MAX_PAGE_SIZE);
   if (!/^[1-9]\d*$/.test(rawLimit) || Number(rawLimit) > MAX_PAGE_SIZE) {
     fail(400, 'invalid_limit', '목록 크기는 1~30이어야 합니다.');
   }
   const limit = Number(rawLimit);
-  const cursor = url.searchParams.has('cursor') ? decodeCursor(url.searchParams.get('cursor'), model) : null;
+  const cursor = url.searchParams.has('cursor') ? decodeCursor(url.searchParams.get('cursor'), model, query.normalized) : null;
   const clauses = [];
   const parameters = [];
   if (model) { clauses.push('model = ?'); parameters.push(model); }
+  const searchable = [
+    'model', "lower(model) || ' ' || json_extract(payload, '$.profile.hardware.model)", 'author', "json_extract(payload, '$.profile.name')",
+    "json_extract(payload, '$.profile.notes')", "json_extract(payload, '$.profile.hardware.cpu')",
+    "CAST(json_extract(payload, '$.profile.hardware.gpu') AS TEXT)",
+    "CAST(CAST(json_extract(payload, '$.profile.hardware.ram_gb') AS INTEGER) AS TEXT) || 'gb'",
+  ];
+  for (const word of query.tokens) {
+    clauses.push(`(${searchable.map(column => `lower(${column}) LIKE ?`).join(' OR ')})`);
+    parameters.push(...searchable.map(() => `%${word}%`));
+  }
+  if (query.explicitModels.length) {
+    clauses.push(`model IN (${query.explicitModels.map(() => '?').join(',')})`);
+    parameters.push(...query.explicitModels);
+  } else if (query.models.length) {
+    clauses.push(`model IN (${query.models.map(() => '?').join(',')})`);
+    parameters.push(...query.models);
+  }
   if (cursor) {
     clauses.push('(created_at < ? OR (created_at = ? AND id < ?))');
     parameters.push(cursor.createdAt, cursor.createdAt, cursor.id);
@@ -166,7 +238,7 @@ async function listProfiles(url, db) {
   const page = result.results.slice(0, limit);
   return json({
     posts: page.map(postFromRow),
-    nextCursor: result.results.length > limit ? encodeCursor(page[page.length - 1], model) : null,
+    nextCursor: result.results.length > limit ? encodeCursor(page[page.length - 1], model, query.normalized) : null,
   });
 }
 

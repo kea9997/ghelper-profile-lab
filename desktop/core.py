@@ -104,7 +104,7 @@ class Lab:
             return {'hardware':self.hardware,'discovery':discovery,'config':config,
                     **{k:self.db[k] for k in ('profiles','runs','backups')},'catalog':catalog,
                     'benchmark':dict(self.benchmark),'communityUrl':'https://ghelper.optiwork.co.kr',
-                    'releaseUrl':'https://github.com/kea9997/ghelper-profile-lab/releases/latest','appVersion':'0.3.0'}
+                    'releaseUrl':'https://github.com/kea9997/ghelper-profile-lab/releases/latest','appVersion':'0.3.1'}
     def refresh(self):
         self.discovery=bridge.discover(); return self.state()
     def select_config(self,path):
