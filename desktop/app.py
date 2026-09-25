@@ -28,7 +28,7 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                 if self.headers.get('Host')!=f'127.0.0.1:{self.server.server_port}' or not hmac.compare_digest(qs.get('session',[''])[0],token):
                     self.send({'error':'실행 파일에서 프로그램을 여세요.'},403); return
                 html=(assets/'web'/'index.html').read_text(encoding='utf-8')
-                for marker, name in {'__APP_STYLE__':'style.css','__SETTINGS_STYLE__':'settings-view.css','__SETTINGS_JS__':'settings-view.js','__APP_JS__':'app.js','__LIBRARY_JS__':'library.js'}.items():
+                for marker, name in {'__APP_STYLE__':'style.css','__SETTINGS_STYLE__':'settings-view.css','__SETTINGS_JS__':'settings-view.js','__SCORE_CARD_JS__':'score-card.js','__APP_JS__':'app.js','__LIBRARY_JS__':'library.js'}.items():
                     if marker in html: html=html.replace(marker,(assets/'web'/name).read_text(encoding='utf-8'))
                 html=html.replace('__SESSION_TOKEN__',token).encode()
                 self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Content-Length',str(len(html)))

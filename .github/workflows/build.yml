@@ -58,6 +58,9 @@ jobs:
       - name: Run settings view regression tests
         run: node desktop/tests/settings-view-tests.cjs
 
+      - name: Run score image regression tests
+        run: node --test desktop/tests/score-card-tests.cjs
+
       - name: Build executable and ZIP
         run: ./scripts/build.ps1 -PythonExecutable python
 

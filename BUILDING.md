@@ -19,6 +19,7 @@ try {
 
 node --test api/test/worker.test.mjs
 node desktop/tests/settings-view-tests.cjs
+node --test desktop/tests/score-card-tests.cjs
 
 ./build/.venv/Scripts/python.exe desktop/app.py --show
 ```

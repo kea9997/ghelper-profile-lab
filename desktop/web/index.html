@@ -123,7 +123,7 @@ __SETTINGS_STYLE__</style>
             <p class="small muted">위 검색창에서 모델·연도·CPU·GPU로 함께 검색할 수 있습니다. 원문 출처와 점수의 측정 조건을 확인하세요. 참고 자료는 자동 적용되지 않습니다.</p><div id="catalog-list"></div>
             <button id="catalog-more" class="btn secondary" type="button" hidden>참고 자료 더 보기</button>
           </details>
-          <p class="library-footer"><span id="community-url-status">ghelper.optiwork.co.kr</span><a id="release-link" href="https://github.com/kea9997/ghelper-profile-lab/releases/latest" target="_blank" rel="noopener noreferrer">프로그램 다운로드 · GitHub ↗</a></p>
+          <p class="library-footer"><span id="community-url-status">ghelper.optiwork.co.kr</span><span><a id="release-link" href="https://github.com/kea9997/ghelper-profile-lab/releases/latest" target="_blank" rel="noopener noreferrer">프로그램 다운로드 · GitHub ↗</a> · <a href="https://github.com/sponsors/kea9997" target="_blank" rel="noopener noreferrer">개발 후원 · GitHub Sponsors ↗</a></span></p>
         </section>
       </div>
     </main>
@@ -145,6 +145,7 @@ __SETTINGS_STYLE__</style>
     <div class="modal-header"><h2 id="settings-title">도움말 · 설정</h2><button id="settings-close" class="close-button" type="button" aria-label="도움말 닫기">×</button></div>
     <div class="modal-body">
       <div class="stack"><h3>이렇게 사용하세요</h3><p class="small muted">G-Helper에서 원하는 상태를 맞추고 ‘현재 설정 저장’을 누르세요. 저장한 설정을 다시 적용할 때는 G-Helper를 먼저 종료하세요. 이 창의 × 버튼은 작업 표시줄의 트레이로 숨기며, 앱을 끝내려면 상단의 ‘종료’를 누르면 됩니다.</p></div>
+      <div class="support-note"><div><strong>앱 개발을 응원하고 싶다면</strong><p class="small muted">후원은 선택 사항이며 모든 기능을 무료로 사용할 수 있습니다. GitHub Sponsors가 공개되면 후원할 수 있습니다.</p></div><a class="btn secondary" href="https://github.com/sponsors/kea9997" target="_blank" rel="noopener noreferrer">후원 페이지 열기 ↗</a></div>
       <details class="disclosure"><summary>내 노트북 정보</summary><dl id="hardware-details" class="details-list"></dl></details>
       <details class="disclosure"><summary>G-Helper 연결 설정</summary>
         <dl id="connection-details" class="details-list" style="margin-bottom: 17px"></dl>
@@ -164,6 +165,7 @@ __SETTINGS_STYLE__</style>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-text"></span><button id="toast-close" type="button" aria-label="알림 닫기">×</button></div>
 <script>__SETTINGS_JS__
+__SCORE_CARD_JS__
 __APP_JS__
 __LIBRARY_JS__
 initLibrary(); navigate(); refresh();</script>
