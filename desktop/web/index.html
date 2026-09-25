@@ -84,10 +84,10 @@ __SETTINGS_STYLE__</style>
             <details id="benchmark-options">
               <summary>고급 실행 옵션</summary>
               <label class="radio-card"><input type="radio" name="driver" value="guided" checked><span><strong>안내에 따라 직접 실행</strong><small>각 모드가 준비되면 3DMark에서 Time Spy를 실행합니다.</small></span></label>
-              <label class="radio-card"><input type="radio" name="driver" value="enterprise"><span><strong>자동 실행</strong><small>3DMark 명령줄 실행 도구와 사용 권한이 있는 경우에 사용할 수 있습니다.</small></span></label>
+              <label class="radio-card"><input type="radio" name="driver" value="enterprise"><span><strong>완전 자동 실행 · Enterprise 전용</strong><small>일반 Steam판에는 공식 명령줄 실행 기능이 없습니다. 선택하면 이 컴퓨터에서 사용할 수 있는지 안내합니다.</small></span></label>
               <p class="small muted">모드 사이에는 120초 동안 냉각을 기다립니다.</p>
             </details>
-            <div class="setup-footer"><button id="start-benchmark" class="btn primary" type="button">3개 모드 비교 시작</button><span id="benchmark-readiness">준비 상태를 확인하고 있어요.</span></div>
+            <div class="setup-footer"><button id="start-benchmark" class="btn primary" type="button">3개 모드 비교 시작</button><span id="benchmark-readiness" role="status" aria-live="polite">준비 상태를 확인하고 있어요.</span></div>
           </section>
           <section id="benchmark-progress-panel" class="panel" aria-label="성능 비교 진행" hidden>
             <div class="row between"><span id="benchmark-status" class="status-pill">대기 중</span><span id="benchmark-count" class="small muted">0 / 3</span></div>
