@@ -288,6 +288,9 @@ test('reference catalog keeps official specifications separate from sourced Time
   assert.equal(official.gpu, 'RTX 5090');
   assert.match(official.settingsText, /Turbo 100W \/ Manual 110W/);
   assert.equal(official.timeSpy, undefined);
+  const official2024 = data.entries.find(entry => entry.id === 'asus-2024-ga403ui-gpu-spec');
+  assert.match(official2024.summary, /GPU 최대 전력 90W/);
+  assert.doesNotMatch(official2024.summary, /Manual/);
   const measured = data.entries.find(entry => entry.id === 'ga403ui-timespy-balanced-10413');
   assert.equal(measured.timeSpy.total, 10413);
   assert.match(measured.settingsText, /CPU boost disabled/);

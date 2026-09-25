@@ -115,9 +115,15 @@ const community = [
     limitations: '냉각 패드 RPM은 노트북 팬 RPM이 아닙니다. 작성자의 모델 코드는 없으나 ASUS 공식 표의 2025 G14 RTX 5070 Ti 조합은 GA403WR입니다. 자동 적용 불가.'
   }
 ];
+for (const entry of manual.entries) {
+  const url = new URL(entry.sourceUrl);
+  entry.sourceType = url.hostname === 'rog.asus.com' || url.hostname === 'www.asus.com' || url.pathname.includes('/docs/README.md') ? 'official' : 'community';
+}
 const generated = records.map(r => {
   const turbo = r.turboBase + r.boost, manualMax = r.manualBase + r.boost;
-  const summary = `ASUS 공식 사양: ${r.family} ${r.year} ${r.model} · ${r.gpu} · 최대 GPU 전력 Turbo ${turbo}W / Manual ${manualMax}W.`;
+  const summary = r.year === 2024
+    ? `ASUS 공식 사양: ${r.family} ${r.year} ${r.model} · ${r.gpu} · GPU 최대 전력 ${turbo}W.`
+    : `ASUS 공식 사양: ${r.family} ${r.year} ${r.model} · ${r.gpu} · 최대 GPU 전력 Turbo ${turbo}W / Manual ${manualMax}W.`;
   return {
     id: `asus-${r.year}-${r.model.toLowerCase()}-gpu-spec`,
     title: `${r.family} ${r.year} ${r.gpu} · ${r.model}`,
