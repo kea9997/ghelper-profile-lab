@@ -5,6 +5,7 @@ const $=id=>document.getElementById(id);
 const pages={profiles:'내 설정',benchmark:'성능 비교',community:'설정 자료실'};
 let state=null,stopped=false,pollTimer=null,refreshing=false,dialog=null,dialogId=0,toastTimer=null;
 let selectedPublic='',publicSelection=new Set(),cache={},operationPending=false,setupExpanded=false;
+let catalogVisible=18;
 const modeName=v=>({0:'균형',1:'터보',2:'조용'})[v]||'모드 정보 없음';
 const number=v=>typeof v==='number'&&Number.isFinite(v)?v.toLocaleString('ko-KR'):'—';
 const date=v=>v?new Date(v).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'날짜 없음';
@@ -49,7 +50,32 @@ function showRun(r){const body=node('div',null,'stack');body.append(detailsList(
 function renderCommunity(){const profiles=state.profiles||[],select=$('public-profile'),selected=select.value||selectedPublic;const sig=JSON.stringify(profiles.map(p=>[p.id,p.name]));if(cache.publicProfiles!==sig){cache.publicProfiles=sig;select.replaceChildren();if(!profiles.length){const o=node('option','내 설정에서 먼저 저장해 주세요');o.value='';select.append(o);}else profiles.forEach(p=>{const o=node('option',p.name);o.value=p.id;select.append(o);});if(profiles.some(p=>p.id===selected))select.value=selected;selectedPublic=select.value;}renderPublicRuns();$('community-url-status').textContent='ghelper.optiwork.co.kr · 사용자 공유 기록';}
 function eligible(p){return (state.runs||[]).filter(r=>p&&r.binding==='captured'&&r.status==='valid'&&r.settingsHash===p.settingsHash);}
 function renderPublicRuns(){const p=(state.profiles||[]).find(p=>p.id===$('public-profile').value),runs=eligible(p);publicSelection=new Set([...publicSelection].filter(id=>runs.some(r=>r.id===id)));memo('public-runs',[p?.id,runs],target=>{if(!runs.length){target.append(node('p','연결된 점수가 없어 설정만 공유합니다.','small muted'));return;}for(const r of runs){const label=node('label',null,'check-row'),check=node('input');check.type='checkbox';check.checked=publicSelection.has(r.id);check.addEventListener('change',()=>check.checked?publicSelection.add(r.id):publicSelection.delete(r.id));label.append(check,node('span',modeName(r.mode)+' · '+number(r.totalScore)+'점 · '+date(r.createdAt)));target.append(label);}});}
-function renderCatalog(){const entries=state.catalog?.entries||[];$('catalog-count').textContent=entries.length+'개';memo('catalog-list',entries,target=>{for(const e of entries){const card=node('article',null,'source-card');card.append(node('strong',e.title||e.model),node('p',e.summary||e.notes||'','small muted'));const content=node('div',null,'stack');if(e.settingsText)content.append(node('p',e.settingsText));if(e.limitations)content.append(notice(e.limitations));const url=safeUrl(e.url||e.sourceUrl||e.source?.url);if(url){const a=node('a','원본 자료 보기 ↗');a.href=url;a.target='_blank';a.rel='noopener noreferrer';content.append(a);}card.append(detail('조건과 출처',content));target.append(card);}});}
+function renderCatalog(){
+  const query=$('library-search').value.trim().toLocaleLowerCase(),tokens=query.split(/\s+/).filter(Boolean);
+  const entries=(state.catalog?.entries||[]).filter(e=>{
+    if(!tokens.length)return true;
+    const value=[e.title,e.family,e.year,e.model,e.cpu,e.gpu,e.summary,e.settingsText,e.timeSpy?.total,e.family?.replace('제피러스','Zephyrus')].filter(Boolean).join(' ').toLocaleLowerCase();
+    const compact=value.replace(/[\s·_-]/g,'');
+    return tokens.every(t=>value.includes(t)||compact.includes(t.replace(/[\s·_-]/g,'')));
+  });
+  $('catalog-count').textContent=entries.length+'개';
+  $('catalog-more').hidden=entries.length<=catalogVisible;
+  memo('catalog-list',[query,catalogVisible,entries.slice(0,catalogVisible)],target=>{
+    if(!entries.length){target.append(notice('일치하는 참고 자료가 없어요. 모델 코드나 RTX 그래픽카드로 다시 검색해 보세요.'));return;}
+    for(const e of entries.slice(0,catalogVisible)){
+      const card=node('article',null,'source-card');
+      card.append(node('strong',(e.sourceType==='official'?'ASUS 공식 사양 · ':e.timeSpy?'사용자 Time Spy · ':'참고 기록 · ')+(e.title||e.model)),node('p',[e.cpu,e.gpu].filter(Boolean).join(' · '),'small muted'),node('p',e.summary||e.notes||'','small muted'));
+      if(e.timeSpy){const score=node('p','Time Spy 총점 '+number(e.timeSpy.total)+(e.timeSpy.graphics!=null?' · 그래픽 '+number(e.timeSpy.graphics):'')+(e.timeSpy.cpu!=null?' · CPU '+number(e.timeSpy.cpu):''),'reference-score');card.append(score);}
+      const content=node('div',null,'stack');
+      if(e.settingsText)content.append(node('p',e.settingsText));
+      if(e.timeSpy?.conditions)content.append(node('p','측정 조건: '+e.timeSpy.conditions));
+      if(e.limitations)content.append(notice(e.limitations));
+      const url=safeUrl(e.url||e.sourceUrl||e.source?.url);
+      if(url){const a=node('a','출처 원문 보기 ↗');a.href=url;a.target='_blank';a.rel='noopener noreferrer';content.append(a);}
+      card.append(detail('설정 조건과 출처',content,e.id));target.append(card);
+    }
+  });
+}
 function renderSettings(){const h=state.hardware,d=state.discovery;$('hardware-details').replaceChildren(...detailsList([['노트북',h.model],['CPU',h.cpu],['그래픽카드',Array.isArray(h.gpu)?h.gpu.join(' / '):h.gpu],['메모리',number(h.ram_gb)+' GB'],['BIOS',h.bios]]).childNodes);$('connection-details').replaceChildren(...detailsList([['G-Helper',d.ghelper_running?'실행 중':'종료됨'],['버전',d.ghelper_version],['3DMark',d.benchmark_exe?'설치 확인됨':'확인 필요']]).childNodes);const options=$('config-candidates');if(cache.configCandidates!==JSON.stringify(d.config_candidates)){cache.configCandidates=JSON.stringify(d.config_candidates);options.replaceChildren();const o=node('option','직접 경로 입력');o.value='';options.append(o);for(const path of d.config_candidates||[]){const opt=node('option',path);opt.value=path;options.append(opt);}}if(!$('config-path').dataset.dirty&&document.activeElement!==$('config-path'))$('config-path').value=d.config_path||'';$('current-settings').textContent=JSON.stringify(state.config,null,2);}
 function openModal(title,body,confirmText='',action=null){if(!$('modal').open)lastFocus=document.activeElement;dialog={id:++dialogId,action,pending:false};$('modal-title').textContent=title;$('modal-body').replaceChildren(body);$('modal-confirm').hidden=!action;$('modal-confirm').textContent=confirmText;$('modal-confirm').disabled=false;$('modal-cancel').textContent=action?'취소':'닫기';$('modal-cancel').disabled=false;$('modal-close').disabled=false;if(!$('modal').open)$('modal').showModal();}
 let lastFocus=null;
@@ -68,6 +94,7 @@ $('config-form').addEventListener('submit',e=>{e.preventDefault();act(e.submitte
 $('prepare-again').addEventListener('click',()=>{setupExpanded=!setupExpanded;renderBenchmark();});$('start-benchmark').addEventListener('click',startBenchmark);document.querySelectorAll('input[name=driver]').forEach(e=>e.addEventListener('change',()=>{renderBenchmark();renderAvailability();}));
 $('cancel-benchmark').addEventListener('click',e=>act(e.currentTarget,async()=>{state.benchmark=await api('/api/benchmark/cancel',{});renderBenchmark();showToast('중단을 요청했어요. 원래 모드로 돌아갈 때까지 기다려 주세요.');schedule();}));
 $('scan-results').addEventListener('click',e=>act(e.currentTarget,async()=>{const r=await api('/api/results/scan',{});await refresh();showToast('지난 기록 '+(r.added||0)+'개를 가져왔어요. 전체 기록에서 확인하세요.');}));
+$('catalog-more').addEventListener('click',()=>{catalogVisible+=18;renderCatalog();});
 $('public-profile').addEventListener('change',()=>{selectedPublic=$('public-profile').value;publicSelection.clear();cache['public-runs']=null;renderPublicRuns();});
 $('community-form').addEventListener('submit',e=>{e.preventDefault();act(e.submitter,prepareShare);});
 $('shutdown-button').addEventListener('click',()=>{const body=node('div',null,'stack');if(isActive()){body.append(node('p','비교를 먼저 중단하고 원래 모드로 돌아온 뒤 종료해 주세요.'));openModal('성능 비교가 진행 중이에요',body);return;}body.append(node('p','트레이 아이콘까지 완전히 종료합니다. 창만 숨기려면 × 버튼을 누르세요.'));openModal('프로그램을 종료할까요?',body,'종료',async()=>{await api('/api/shutdown',{});stopped=true;clearTimeout(pollTimer);$('app-content').hidden=true;$('connection-error').hidden=false;$('connection-error').textContent='프로그램을 종료했습니다.';});});

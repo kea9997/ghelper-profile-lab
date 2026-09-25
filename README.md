@@ -10,6 +10,8 @@ ASUS 노트북의 G-Helper 설정을 저장·비교·복원하고, Time Spy 결�
 
 검색창에서 제품명과 기본 사양을 같이 입력할 수 있습니다. 예: `제피러스 G16 2025 RTX 5090`. 게시 카드에는 확인된 제품군·연도·GPU·메모리를, 상세 정보에는 정확한 모델 코드와 CPU를 표시합니다. `GU605CX`, `RTX5090`, `Core Ultra 9 285H` 같은 모델 코드·GPU·CPU 검색도 지원합니다.
 
+앱과 웹의 기종별 참고 자료에는 [ASUS의 2024 GPU 전력 사양표](https://rog.asus.com/us/articles/rog-gaming-laptops/the-complete-list-of-geforce-gpu-power-specifications-for-2024-rog-and-tuf-gaming-laptops/)와 [2025 사양표](https://rog.asus.com/ca-en/articles/rog-gaming-laptops/the-complete-list-of-geforce-gpu-power-specifications-for-2025-rog-and-tuf-gaming-laptops/)의 모델별 기록, 원문에서 설정 조건과 점수가 함께 확인된 Time Spy 사용자 기록이 있습니다. 같은 검색창으로 모두 찾고 원문을 열 수 있습니다. 공식 GPU 전력은 기기 사양이지 G-Helper에 입력할 추천 수치가 아니며, 참고 항목은 자동 적용되지 않습니다.
+
 ## 처음 사용하기
 
 앱은 작업 표시줄 오른쪽 트레이에서 시작합니다. 아이콘이 보이지 않으면 시계 옆 숨겨진 아이콘을 확인하세요. 트레이의 **Profile Lab 열기**로 창을 열고, **×**나 최소화는 트레이로 숨깁니다. 완전히 끝내려면 트레이 메뉴의 **종료**를 선택하세요. 실행 파일을 다시 실행하면 기존 창이 열립니다.
@@ -66,5 +68,7 @@ ASUS 노트북의 G-Helper 설정을 저장·비교·복원하고, Time Spy 결�
 ## 개발
 
 Windows 앱 소스는 `desktop/`, Cloudflare Worker API는 `api/`에 있습니다. Python 3.14 이상·Node.js 24를 사용하며 [BUILDING.md](BUILDING.md)에 실행·테스트·빌드 명령이 있습니다. `scripts/build.ps1`은 PyInstaller 6.22.3으로 EXE와 문서·라이선스 포함 ZIP을 만듭니다. GitHub Actions는 테스트와 artifact 업로드만 수행합니다.
+
+참고 자료 원본은 `desktop/catalog.manual.json`과 `scripts/generate_references.mjs`에 있습니다. 수정 후 `node scripts/generate_references.mjs`로 앱·웹 공유용 파일을 만들고 `node scripts/generate_references.mjs --check`로 일치 여부를 확인합니다. 근거가 없는 CPU·팬·Time Spy 값은 추가하지 않습니다.
 
 외부 라이브러리의 권리와 고지는 [THIRD-PARTY-LICENSES.txt](desktop/THIRD-PARTY-LICENSES.txt)와 [PYTHON-LICENSE.txt](desktop/PYTHON-LICENSE.txt)에 있습니다. 이 프로그램은 ASUS, G-Helper, UL Solutions와 제휴하거나 인증받은 제품이 아닙니다.

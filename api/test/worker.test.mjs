@@ -260,6 +260,7 @@ test('public site serves searchable library and read-only assets', async t => {
   assert.ok(html.includes(env.RELEASE_URL));
   assert.ok(html.includes('id="profile-list"'));
   assert.ok(html.includes('id="search-input"'));
+  assert.ok(html.includes('id="references-list"'));
   assert.ok(html.includes('G-Helper 설정'));
   assert.ok(html.includes('/site.js'));
   assert.ok(response.headers.get('Content-Security-Policy').includes("frame-ancestors 'none'"));
@@ -267,9 +268,30 @@ test('public site serves searchable library and read-only assets', async t => {
   const script = await request(env, '/site.js');
   assert.equal(script.status, 200);
   assert.match(script.headers.get('Content-Type'), /^application\/javascript/);
-  assert.ok((await script.text()).includes("fetch('/api/profiles?"));
+  const scriptText = await script.text();
+  assert.ok(scriptText.includes("fetch('/api/profiles?"));
+  assert.ok(scriptText.includes("fetch('/api/references'"));
   const css = await request(env, '/site.css');
   assert.equal(css.status, 200);
   assert.match(css.headers.get('Content-Type'), /^text\/css/);
   assert.equal((await request({ ...env, RELEASE_URL: 'javascript:alert(1)' }, '/')).status, 503);
+});
+
+test('reference catalog keeps official specifications separate from sourced Time Spy reports', async t => {
+  const env = fixture(t);
+  const response = await request(env, '/api/references');
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.schemaVersion, 2);
+  assert.ok(data.entries.length >= 90);
+  const official = data.entries.find(entry => entry.id === 'asus-2025-gu605cx-gpu-spec');
+  assert.equal(official.gpu, 'RTX 5090');
+  assert.match(official.settingsText, /Turbo 100W \/ Manual 110W/);
+  assert.equal(official.timeSpy, undefined);
+  const measured = data.entries.find(entry => entry.id === 'ga403ui-timespy-balanced-10413');
+  assert.equal(measured.timeSpy.total, 10413);
+  assert.match(measured.settingsText, /CPU boost disabled/);
+  assert.ok(measured.sourceUrl.startsWith('https://www.reddit.com/'));
+  assert.ok(data.entries.every(entry => entry.status === 'reference' && entry.sourceUrl.startsWith('https://')));
+  assert.equal((await request(env, '/api/references', 'POST', '{}')).status, 405);
 });

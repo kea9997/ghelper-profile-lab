@@ -177,6 +177,7 @@
     .source-card h3 { margin: 8px 0 4px; }
     .source-card p { font-size: 12px; color: var(--muted); }
     .source-card a { display: inline-block; font-size: 12px; margin-top: 7px; }
+    .source-card .reference-score { color: var(--accent); font-size: 14px; font-weight: 700; margin: 8px 0; }
     .details-list, .detail-list { display: grid; grid-template-columns: 105px minmax(0, 1fr); gap: 9px 16px; margin: 0; font-size: 12px; }
     .details-list dt, .detail-list dt { color: var(--muted); }
     .details-list dd, .detail-list dd { margin: 0; overflow-wrap: anywhere; }

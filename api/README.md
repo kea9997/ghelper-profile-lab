@@ -14,15 +14,16 @@
 | `SERVICE_ORIGIN` | 정확한 허용 Origin. 기본값 `https://ghelper.optiwork.co.kr` |
 | `RELEASE_URL` | HTTPS GitHub 배포 링크. 비어 있으면 다운로드 미설정 안내 |
 
-`GET /`는 프로그램 설명, 다운로드 링크와 공개 설정 자료실을 제공합니다. 웹 화면은 같은 출처의 `GET /api/profiles`를 읽어 모델·CPU·GPU 검색, 설정값과 Time Spy 점수·소음·팬 RPM을 표시합니다. 게시물이 없으면 빈 상태를 보여줍니다. `GET /site.css`, `GET /site.js`는 웹 화면 자산입니다. 웹에는 설정 적용·게시 요청이 없습니다.
+`GET /`는 프로그램 설명, 다운로드 링크와 공개 설정 자료실을 제공합니다. 웹 화면은 같은 출처의 `GET /api/profiles`를 읽어 사용자 게시물을, `GET /api/references`를 읽어 출처가 있는 공식 사양·커뮤니티 Time Spy 참고 기록을 표시합니다. 같은 검색창에서 모델·연도·CPU·GPU를 찾습니다. 참고 기록은 적용 가능한 설정 파일이 아닙니다. `GET /site.css`, `GET /site.js`는 웹 화면 자산입니다. 웹에는 설정 적용·게시 요청이 없습니다.
 
 ## API 계약
 
-모든 JSON 응답은 `Cache-Control: no-store`입니다. 오류는 `{ "error": "사용자 메시지", "code": "machine_code" }`입니다. 허용되지 않은 Origin은 403입니다. Origin 없는 네이티브 요청과 정확한 서비스 Origin은 허용합니다. 브라우저의 임의 출처를 허용하는 CORS 헤더는 보내지 않습니다. OPTIONS는 405이며 Python 네이티브 중계는 preflight가 필요하지 않습니다. Origin 검사는 사용자 인증 수단이 아닙니다.
+게시물·오류 JSON 응답은 `Cache-Control: no-store`이고 정적 참고 목록만 `public, max-age=300`입니다. 오류는 `{ "error": "사용자 메시지", "code": "machine_code" }`입니다. 허용되지 않은 Origin은 403입니다. Origin 없는 네이티브 요청과 정확한 서비스 Origin은 허용합니다. 브라우저의 임의 출처를 허용하는 CORS 헤더는 보내지 않습니다. OPTIONS는 405이며 Python 네이티브 중계는 preflight가 필요하지 않습니다. Origin 검사는 사용자 인증 수단이 아닙니다.
 
 | 요청 | 성공 응답 |
 | --- | --- |
 | `GET /api/health` | `200 {ok:true,service:"ghelper-profile-api",schemaVersion:1}`. DB 스키마 읽기도 확인 |
+| `GET /api/references` | `200 {schemaVersion:2,updatedAt,entries:[...]}`. 출처가 있는 읽기 전용 참고 기록 |
 | `GET /api/profiles?model=&q=&cursor=&limit=30` | `200 {posts:[...],nextCursor:null 또는 문자열}` |
 | `GET /api/profiles/{uuid}` | `200 {post:{...}}` |
 | `POST /api/profiles` | 최초 `201 {id,createdAt,replayed:false}`, 재시도 `200 {id,createdAt,replayed:true}` |

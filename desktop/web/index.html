@@ -118,9 +118,10 @@ __SETTINGS_STYLE__</style>
           <div id="library-list" class="library-list"></div>
           <button id="library-more" class="btn secondary" type="button" hidden>더 불러오기</button>
           <details id="owned-details" class="disclosure"><summary>내가 공유한 설정</summary><p class="small muted">이 컴퓨터에서 공유한 글과 재시도할 업로드를 관리합니다.</p><div id="owned-list" class="stack"></div></details>
-          <details id="catalog-details" class="disclosure">
-            <summary>기종별 참고 자료 <span id="catalog-count" class="count">0개</span></summary>
-            <p class="small muted">공개 출처의 참고 기록입니다. 완성된 설정이 아니므로 직접 적용할 수 없습니다.</p><div id="catalog-list"></div>
+          <details id="catalog-details" class="disclosure" open>
+            <summary>기종별 공식 사양·Time Spy 참고 <span id="catalog-count" class="count">0개</span></summary>
+            <p class="small muted">위 검색창에서 모델·연도·CPU·GPU로 함께 검색할 수 있습니다. 원문 출처와 점수의 측정 조건을 확인하세요. 참고 자료는 자동 적용되지 않습니다.</p><div id="catalog-list"></div>
+            <button id="catalog-more" class="btn secondary" type="button" hidden>참고 자료 더 보기</button>
           </details>
           <p class="library-footer"><span id="community-url-status">ghelper.optiwork.co.kr</span><a id="release-link" href="https://github.com/kea9997/ghelper-profile-lab/releases/latest" target="_blank" rel="noopener noreferrer">프로그램 다운로드 · GitHub ↗</a></p>
         </section>

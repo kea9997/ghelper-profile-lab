@@ -52,6 +52,9 @@ jobs:
         working-directory: api
         run: node --test test/worker.test.mjs
 
+      - name: Check sourced reference catalog
+        run: node scripts/generate_references.mjs --check
+
       - name: Run settings view regression tests
         run: node desktop/tests/settings-view-tests.cjs
 

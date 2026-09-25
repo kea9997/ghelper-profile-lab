@@ -1,6 +1,7 @@
 // Dependency-free Worker ES module. Stored scores remain user reports.
 import { timingSafeEqual } from 'node:crypto';
 import { SITE_CSS, SITE_JS, siteHtml } from './site.mjs';
+import { CATALOG } from './catalog-data.mjs';
 
 export const MAX_BODY_BYTES = 128 * 1024;
 export const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -351,8 +352,12 @@ export default {
       if (path === '/' && request.method === 'GET') return landing(env);
       if (path === '/site.css' && request.method === 'GET') return siteAsset(SITE_CSS, 'text/css');
       if (path === '/site.js' && request.method === 'GET') return siteAsset(SITE_JS, 'application/javascript');
-      const known = path === '/api/health' || path === '/api/profiles' || path.startsWith('/api/profiles/');
+      const known = path === '/api/health' || path === '/api/references' || path === '/api/profiles' || path.startsWith('/api/profiles/');
       if (!known) fail(404, 'not_found', '요청한 주소가 없습니다.');
+      if (path === '/api/references') {
+        if (request.method !== 'GET') fail(405, 'method_not_allowed', 'GET 요청만 지원합니다.', { Allow: 'GET' });
+        return json(CATALOG, 200, { 'Cache-Control': 'public, max-age=300' });
+      }
       if (path === '/api/health') {
         if (request.method !== 'GET') fail(405, 'method_not_allowed', 'GET 요청만 지원합니다.', { Allow: 'GET' });
         if (!env.DB) throw new Error('Missing DB binding');

@@ -159,7 +159,7 @@ async function prepareShare(){
 function initLibrary(){
   $('library-refresh').addEventListener('click',()=>loadLibrary());
   $('library-more').addEventListener('click',()=>loadLibrary(true));
-  $('library-search').addEventListener('input',()=>{clearTimeout(librarySearchTimer);renderLibrary();librarySearchTimer=setTimeout(()=>{library.posts=[];library.cursor=null;library.loaded=false;loadLibrary();},350);});
+  $('library-search').addEventListener('input',()=>{clearTimeout(librarySearchTimer);catalogVisible=18;renderCatalog();if($('library-search').value.trim())$('catalog-details').open=true;renderLibrary();librarySearchTimer=setTimeout(()=>{library.posts=[];library.cursor=null;library.loaded=false;loadLibrary();},350);});
   $('library-compatible').addEventListener('change',resetLibraryFilter);
   $('open-publish').addEventListener('click',()=>openPublish().catch(report));
   $('publish-close').addEventListener('click',()=>$('publish-modal').close());
