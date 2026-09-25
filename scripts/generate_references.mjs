@@ -85,7 +85,7 @@ add(2025, 'TUF Gaming A14', 'FA401KH FA401UH', 'RTX 5050', 90, 15, 95);
 const manual = JSON.parse(readFileSync(path.join(root, 'desktop/catalog.manual.json'), 'utf8'));
 const community = [
   {
-    id: 'ga403ui-timespy-balanced-10413', title: '제피러스 G14 2024 RTX 4070 · 균형 Time Spy 10,413점', model: 'GA403UI', year: 2024,
+    id: 'ga403ui-timespy-balanced-10413', title: '제피러스 G14 2024 RTX 4070 · 균형 Time Spy', model: 'GA403UI', year: 2024,
     family: 'ROG 제피러스 G14', cpu: 'AMD Ryzen 9 8945HS', gpu: 'RTX 4070', sourceType: 'community',
     sourceTitle: 'Reddit · Some thoughts on 2024 G14 power modes and G-Helper',
     sourceUrl: 'https://www.reddit.com/r/ZephyrusG14/comments/1bb78my/some_thoughts_on_2024_g14_power_modes_and_ghelper/',
@@ -95,7 +95,7 @@ const community = [
     limitations: '작성자가 밝힌 제품명과 사양을 공식 ASUS 목록의 GA403UI와 대조했습니다. 지역별 하위 SKU는 미확인. 사용자 보고이며 자동 적용 불가.'
   },
   {
-    id: 'ga403ui-timespy-turbo-12234', title: '제피러스 G14 2024 RTX 4070 · 터보 Time Spy 12,234점', model: 'GA403UI', year: 2024,
+    id: 'ga403ui-timespy-turbo-12234', title: '제피러스 G14 2024 RTX 4070 · 터보 Time Spy', model: 'GA403UI', year: 2024,
     family: 'ROG 제피러스 G14', cpu: 'AMD Ryzen 9 8945HS', gpu: 'RTX 4070', sourceType: 'community',
     sourceTitle: 'Reddit · G14 2024 / 4070, some initial benchmarks',
     sourceUrl: 'https://www.reddit.com/r/ZephyrusG14/comments/1b799mh/g14_2024_4070_some_initial_benchmarks/',
@@ -105,7 +105,7 @@ const community = [
     limitations: '최대 성능 벤치 설정이며 일상 사용 권장값이 아닙니다. CPU 언더볼트 -30은 원문의 Cinebench 조건이므로 이 Time Spy 조건에 포함하지 않습니다. 자동 적용 불가.'
   },
   {
-    id: 'ga403wr-timespy-turbo-14902', title: '제피러스 G14 2025 RTX 5070 Ti · 터보 Time Spy 14,902점', model: 'GA403WR', year: 2025,
+    id: 'ga403wr-timespy-turbo-14902', title: '제피러스 G14 2025 RTX 5070 Ti · 터보 Time Spy', model: 'GA403WR', year: 2025,
     family: 'ROG 제피러스 G14', cpu: '', gpu: 'RTX 5070 Ti', sourceType: 'community',
     sourceTitle: 'Reddit · My G14 5070Ti Everyday Turbo GHelper Settings and TimeSpy Results',
     sourceUrl: 'https://www.reddit.com/r/ZephyrusG14/comments/1n81n8z/my_g14_5070ti_everyday_turbo_ghelper_settings_and/',

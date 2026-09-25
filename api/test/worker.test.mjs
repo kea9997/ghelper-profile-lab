@@ -271,6 +271,9 @@ test('public site serves searchable library and read-only assets', async t => {
   const scriptText = await script.text();
   assert.ok(scriptText.includes("fetch('/api/profiles?"));
   assert.ok(scriptText.includes("fetch('/api/references'"));
+  assert.match(scriptText, /그래픽 .*graphicsScore/);
+  assert.match(scriptText, /CPU .*cpuScore/);
+  assert.doesNotMatch(scriptText, /totalScore|timeSpy\.total|총점/);
   const css = await request(env, '/site.css');
   assert.equal(css.status, 200);
   assert.match(css.headers.get('Content-Type'), /^text\/css/);
@@ -293,6 +296,9 @@ test('reference catalog keeps official specifications separate from sourced Time
   assert.doesNotMatch(official2024.summary, /Manual/);
   const measured = data.entries.find(entry => entry.id === 'ga403ui-timespy-balanced-10413');
   assert.equal(measured.timeSpy.total, 10413);
+  assert.equal(measured.timeSpy.graphics, 10439);
+  assert.equal(measured.timeSpy.cpu, 10271);
+  assert.doesNotMatch(measured.title, /10,413점/);
   assert.match(measured.settingsText, /CPU boost disabled/);
   assert.ok(measured.sourceUrl.startsWith('https://www.reddit.com/'));
   assert.ok(data.entries.every(entry => entry.status === 'reference' && entry.sourceUrl.startsWith('https://')));

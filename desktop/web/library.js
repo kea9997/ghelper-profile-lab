@@ -50,7 +50,7 @@ function scoreStrip(runs){
   const strip=node('div',null,'score-strip');
   for(const mode of [2,0,1]){
     const r=[...(runs||[])].filter(r=>r.mode===mode).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))[0];
-    const cell=node('div');cell.append(node('small',modeName(mode)),node('strong',r?number(r.totalScore):'—'));
+    const cell=node('div');cell.append(node('small',modeName(mode)),node('small','그래픽 점수'),node('strong',r?number(r.graphicsScore)+'점':'—'),node('small',r?'CPU 점수 '+number(r.cpuScore)+'점':'CPU 점수 —'));
     cell.append(node('small',r?(r.noiseDbA==null?'소음 미입력':r.noiseDbA+' dBA'):'점수 없음'));
     if(r?.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]'))cell.append(node('small','사용자가 직접 설정 연결'));
     if(r?.fanRpm!=null)cell.append(node('small',number(r.fanRpm)+' RPM'));

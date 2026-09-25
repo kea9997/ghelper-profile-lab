@@ -15,7 +15,10 @@ from unittest.mock import patch
 import updater
 
 
-def release(tag='v0.4.2', content=b'MZtest executable'):
+def release(tag=None, content=b'MZtest executable'):
+    if tag is None:
+        major, minor, patch = updater.version_tuple(updater.APP_VERSION)
+        tag = f'v{major}.{minor}.{patch + 1}'
     return {
         'tag_name': tag, 'draft': False, 'prerelease': False, 'body': '변경 사항',
         'assets': [{
@@ -37,7 +40,8 @@ class UpdaterTests(unittest.TestCase):
     def test_version_and_release_validation(self):
         info = updater.release_info(release())
         self.assertEqual(info['currentVersion'], updater.APP_VERSION)
-        self.assertEqual(info['latestVersion'], '0.4.2')
+        major, minor, patch = updater.version_tuple(updater.APP_VERSION)
+        self.assertEqual(info['latestVersion'], f'{major}.{minor}.{patch + 1}')
         self.assertTrue(info['available'])
         self.assertFalse(updater.release_info(release('v0.4.0'))['available'])
         self.assertNotIn('downloadUrl', updater.public_info(info))

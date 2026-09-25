@@ -9,7 +9,8 @@
   const MODES = [{id: 2, name: '조용'}, {id: 0, name: '균형'}, {id: 1, name: '터보'}];
   const valid = run => run && ['captured', 'manual'].includes(run.binding) && run.status === 'valid' &&
     typeof run.settingsHash === 'string' && run.settingsHash.length > 0 &&
-    Number.isFinite(run.totalScore) && run.totalScore > 0 && MODES.some(mode => mode.id === run.mode);
+    Number.isFinite(run.graphicsScore) && run.graphicsScore > 0 &&
+    Number.isFinite(run.cpuScore) && run.cpuScore > 0 && MODES.some(mode => mode.id === run.mode);
   const text = (value, fallback) => typeof value === 'string' && value.trim() ? value.trim() : fallback;
   const number = value => Number(value).toLocaleString('ko-KR');
 
@@ -20,7 +21,7 @@
     const matching = sorted.filter(run => run.settingsHash === sorted[0].settingsHash);
     const modes = MODES.map(mode => ({...mode, run: matching.find(run => run.mode === mode.id) || null}));
     const best = modes.filter(mode => mode.run).reduce((a, b) =>
-      !a || b.run.totalScore > a.run.totalScore ? b : a, null);
+      !a || b.run.graphicsScore > a.run.graphicsScore ? b : a, null);
     const gpu = Array.isArray(hardware?.gpu) ? hardware.gpu.find(Boolean) : hardware?.gpu;
     return {
       model: text(hardware?.model, 'ASUS 노트북'),
@@ -69,23 +70,27 @@
     ctx.fillText(ellipsis(ctx, data.cpu + '  ·  ' + data.gpu, 1090), 56, 238);
 
     ctx.fillStyle = '#9cb9b5'; ctx.font = '700 18px "Segoe UI", "Malgun Gothic", sans-serif';
-    ctx.fillText('최고 점수  ·  ' + data.best.name, 56, 314);
+    ctx.fillText('최고 그래픽 점수  ·  ' + data.best.name, 56, 314);
     ctx.fillStyle = '#a9f1d2'; ctx.font = '800 110px "Segoe UI", sans-serif';
-    ctx.fillText(number(data.best.run.totalScore), 48, 414);
+    ctx.fillText(number(data.best.run.graphicsScore), 48, 414);
     ctx.fillStyle = '#abc1c8'; ctx.font = '16px "Segoe UI", "Malgun Gothic", sans-serif';
-    ctx.fillText('같은 G-Helper 설정으로 측정한 모드별 Time Spy 결과', 56, 448);
+    ctx.fillText('CPU 점수 ' + number(data.best.run.cpuScore), 56, 445);
+    ctx.fillText('같은 G-Helper 설정으로 측정한 모드별 Time Spy 결과', 56, 468);
 
     data.modes.forEach((mode, index) => {
-      const x = 54 + index * 373, y = 476;
-      rounded(ctx, x, y, 354, 135, 16, mode.id === data.best.id ? '#25483f' : '#1b3039');
+      const x = 54 + index * 373, y = 482;
+      rounded(ctx, x, y, 354, 139, 16, mode.id === data.best.id ? '#25483f' : '#1b3039');
       ctx.fillStyle = mode.id === data.best.id ? '#baf6dc' : '#a9c6c6';
-      ctx.font = '700 18px "Segoe UI", "Malgun Gothic", sans-serif'; ctx.fillText(mode.name, x + 21, y + 33);
+      ctx.font = '700 18px "Segoe UI", "Malgun Gothic", sans-serif'; ctx.fillText(mode.name, x + 21, y + 29);
+      ctx.fillStyle = '#aec8c7'; ctx.font = '13px "Segoe UI", "Malgun Gothic", sans-serif';
+      ctx.fillText('그래픽 점수', x + 21, y + 49);
       ctx.fillStyle = '#f2faf6'; ctx.font = '750 36px "Segoe UI", sans-serif';
-      ctx.fillText(mode.run ? number(mode.run.totalScore) : '—', x + 20, y + 77);
+      ctx.fillText(mode.run ? number(mode.run.graphicsScore) : '—', x + 20, y + 85);
       ctx.fillStyle = '#aec8c7'; ctx.font = '14px "Segoe UI", "Malgun Gothic", sans-serif';
+      ctx.fillText(mode.run ? 'CPU 점수 ' + number(mode.run.cpuScore) : 'CPU 점수 —', x + 21, y + 109);
       const noise = mode.run && Number.isFinite(mode.run.noiseDbA) ? mode.run.noiseDbA + ' dBA' : '소음 미입력';
       const fan = mode.run && Number.isFinite(mode.run.fanRpm) ? number(mode.run.fanRpm) + ' RPM' : '팬 미입력';
-      ctx.fillText(mode.run ? noise + '  ·  ' + fan : '아직 측정하지 않음', x + 21, y + 109);
+      ctx.fillText(mode.run ? noise + '  ·  ' + fan : '아직 측정하지 않음', x + 21, y + 128);
     });
     ctx.fillStyle = '#94aeb6'; ctx.font = '14px "Segoe UI", "Malgun Gothic", sans-serif';
     const date = data.date && Number.isFinite(Date.parse(data.date)) ? new Date(data.date).toLocaleDateString('ko-KR') + '  ·  ' : '';

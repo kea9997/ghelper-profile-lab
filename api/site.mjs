@@ -68,6 +68,7 @@ export const SITE_CSS = String.raw`
 .support-section{display:flex;justify-content:space-between;align-items:center;gap:30px;padding:31px 35px;margin-bottom:85px;border:1px solid #3b5d55;border-radius:17px;background:linear-gradient(125deg,#1a3436,#17222b)}.support-section h2{font-size:28px;letter-spacing:-.04em;margin:9px 0}.support-section p{max-width:680px;color:#abc3c7;font-size:13px;line-height:1.7;margin:0}.support-section .button{flex:none}
 dialog{border:1px solid #466056;border-radius:16px;color:#f2f5fa;background:#16212b;width:min(780px,calc(100% - 28px));max-height:min(85vh,900px);padding:0;box-shadow:0 30px 100px #000b}dialog::backdrop{background:#03070bc9}.dialog-top{height:55px;padding:0 23px;border-bottom:1px solid #34434b;display:flex;justify-content:space-between;align-items:center;color:#a5dfc9;font-weight:800;font-size:12px}.dialog-top button{background:none;color:#d4e4e7;border:0;font-size:27px;line-height:1}.dialog-body{padding:25px}.dialog-body h2{font-size:26px;margin:0 0 10px;line-height:1.35;word-break:break-word}.dialog-note{color:#abc0ca;font-size:13px;line-height:1.7;margin:0 0 18px;white-space:pre-wrap}.detail-meta{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 22px}.detail-meta span{background:#253742;color:#ccdfde;border:1px solid #3c5557;border-radius:6px;font-size:11px;padding:7px 9px}.detail-section{border-top:1px solid #34444c;padding:20px 0}.detail-section h3{font-size:15px;margin:0 0 13px}.detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.detail-cell{background:#202e39;border-radius:8px;padding:11px;font-size:11px}.detail-cell span{display:block;color:#9aafba;margin-bottom:6px}.detail-cell strong{font-size:15px;word-break:break-word}.detail-mode{border:1px solid #3b5158;border-radius:9px;padding:13px;margin:10px 0}.detail-mode h4{margin:0 0 11px;font-size:13px;color:#b4efd5}.detail-mode p{color:#c1d0d5;font-size:12px;line-height:1.6;margin:5px 0}.setting-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #2e3e46;font-size:12px}.setting-row span{color:#b6c8cf}.setting-row strong{font-weight:700;text-align:right;word-break:break-all}.detail-caution{color:#91a8b3;font-size:11px;line-height:1.7}
 @media(max-width:860px){.hero{grid-template-columns:1fr;padding-top:74px;padding-bottom:74px;gap:40px}.hero-card{max-width:480px;transform:none}.profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.footer-inner{flex-wrap:wrap}.support-section{align-items:flex-start;flex-direction:column}}@media(max-width:600px){.wrap{width:min(100% - 30px,1180px)}.topbar{height:65px;gap:10px}.brand{font-size:13px}.brand-mark{width:31px;height:31px;font-size:19px}.topbar nav{display:none}.top-download{margin-left:auto;padding:8px;font-size:11px}.hero{padding-top:59px;padding-bottom:66px}.hero h1{font-size:39px}.hero-lead{font-size:14px}.hero-actions{flex-direction:column}.hero-actions .button{width:100%}.mock-body{padding:31px}.library-section{padding:58px 0}.section-heading{align-items:start;flex-direction:column}.profile-grid,.steps{grid-template-columns:1fr}.library-meta{flex-direction:column;align-items:start}.search-form input{font-size:13px}.search-form button{padding:12px}.detail-grid{grid-template-columns:repeat(2,1fr)}.dialog-body{padding:18px}.footer-inner{align-items:start;flex-direction:column}.read-only{display:none}.support-section{padding:23px;margin-bottom:65px}.support-section .button{width:100%}}
+.card-scores .score-cpu{color:#9eb3bb;border-color:#34434f;background:#1b2732}.detail-cell .score-cpu{color:#9eb3bb}
 `;
 
 export const SITE_JS = String.raw`
@@ -113,7 +114,7 @@ export const SITE_JS = String.raw`
     const model = h.model || '모델 미상';
     return { title: [families[model], model, gpuShort ? gpuShort[0].replace(/RTX\s*/, 'RTX ') : ''].filter(Boolean).join(' · '), line: [h.cpu, gpu, h.ram_gb ? String(h.ram_gb) + 'GB RAM' : ''].filter(Boolean).join(' · '), h };
   }
-  function score(run) { return Number(run.totalScore).toLocaleString('ko-KR') + '점'; }
+  function score(value) { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ko-KR') + '점' : '미공개'; }
   function fanCurve(value) {
     if (typeof value !== 'string' || !/^[\da-f]{2}(?:-[\da-f]{2}){15}$/i.test(value)) return '팬 곡선 확인 필요';
     const bytes = value.split('-').map(part => parseInt(part, 16));
@@ -137,7 +138,7 @@ export const SITE_JS = String.raw`
   function referenceMatches(entry, search) {
     const tokens = search.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
     if (!tokens.length) return true;
-    const values = [entry.title, entry.family, entry.year, entry.model, entry.cpu, entry.gpu, entry.summary, entry.settingsText, entry.timeSpy && entry.timeSpy.total, entry.family && entry.family.replace('제피러스', 'Zephyrus')].filter(Boolean).join(' ').toLocaleLowerCase();
+    const values = [entry.title, entry.family, entry.year, entry.model, entry.cpu, entry.gpu, entry.summary, entry.settingsText, entry.timeSpy && entry.timeSpy.graphics, entry.timeSpy && entry.timeSpy.cpu, entry.family && entry.family.replace('제피러스', 'Zephyrus')].filter(Boolean).join(' ').toLocaleLowerCase();
     const compact = values.replace(/[\s·_-]/g, '');
     return tokens.every(token => values.includes(token) || compact.includes(token.replace(/[\s·_-]/g, '')));
   }
@@ -148,9 +149,8 @@ export const SITE_JS = String.raw`
     item.append(top, node('h3', '', entry.title), node('p', 'card-hardware', [entry.cpu, entry.gpu].filter(Boolean).join(' · ')), node('p', 'reference-summary', entry.summary));
     if (entry.timeSpy) {
       const scores = node('div', 'card-scores');
-      scores.append(node('span', '', 'Time Spy 총점 ' + Number(entry.timeSpy.total).toLocaleString('ko-KR')));
-      if (entry.timeSpy.graphics != null) scores.append(node('span', '', '그래픽 ' + Number(entry.timeSpy.graphics).toLocaleString('ko-KR')));
-      if (entry.timeSpy.cpu != null) scores.append(node('span', '', 'CPU ' + Number(entry.timeSpy.cpu).toLocaleString('ko-KR')));
+      scores.append(node('span', '', '그래픽 ' + score(entry.timeSpy.graphics)));
+      scores.append(node('span', 'score-cpu', 'CPU ' + score(entry.timeSpy.cpu)));
       item.append(scores);
     }
     const details = node('details', 'reference-details');
@@ -199,7 +199,10 @@ export const SITE_JS = String.raw`
     const h = hardware(post);
     item.append(top, node('h3', '', h.title), node('p', 'card-hardware', h.line || '사양 정보 없음'));
     const scores = node('div', 'card-scores');
-    for (const run of latestRuns(post)) scores.append(node('span', '', modeNames[run.mode] + ' ' + score(run) + (run.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]') ? ' · 직접 연결' : '')));
+    for (const run of latestRuns(post)) {
+      scores.append(node('span', '', modeNames[run.mode] + ' · 그래픽 ' + score(run.graphicsScore) + (run.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]') ? ' · 직접 연결' : '')));
+      scores.append(node('span', 'score-cpu', 'CPU ' + score(run.cpuScore)));
+    }
     if (!scores.childElementCount) scores.append(node('span', '', '벤치마크 기록 없음'));
     item.append(scores);
     const bottom = node('div', 'card-bottom');
@@ -235,7 +238,7 @@ export const SITE_JS = String.raw`
     if (!best.length) runs.append(node('p', 'dialog-note', '등록된 점수가 없습니다.'));
     for (const run of best) {
       const cell = node('div', 'detail-cell');
-      cell.append(node('span', '', modeNames[run.mode]), node('strong', '', score(run)));
+      cell.append(node('span', '', modeNames[run.mode] + ' · 그래픽 점수'), node('strong', '', score(run.graphicsScore)), node('span', 'score-cpu', 'CPU 점수 ' + score(run.cpuScore)));
       if (run.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]')) cell.append(node('span', '', '사용자가 직접 설정 연결 · 측정 당시 설정은 검증되지 않음'));
       const extras = [run.noiseDbA == null ? '' : String(run.noiseDbA) + ' dB(A)', run.fanRpm == null ? '' : String(run.fanRpm) + ' RPM'].filter(Boolean);
       if (extras.length) cell.append(node('span', '', extras.join(' · ')));
