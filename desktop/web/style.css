@@ -44,6 +44,9 @@
     .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
     .brand-mark { width: 35px; height: 35px; display: grid; place-items: center; flex: none; background: #2d3825; border: 1px solid #526145; border-radius: 9px; color: var(--accent); font-size: 21px; font-weight: 650; }
     .brand-title { font-size: 17px; font-weight: 650; letter-spacing: -.45px; }
+    .app-version { color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: 0; white-space: nowrap; }
+    #update-button.has-update { color: var(--accent); border-color: #526145; background: #263226; }
+    .update-notes { max-height: 180px; overflow: auto; white-space: pre-wrap; }
     .device-line { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; margin-top: 2px; }
     #device-summary { max-width: 360px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
     .header-actions { display: flex; align-items: center; gap: 4px; flex: none; }

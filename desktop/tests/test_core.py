@@ -52,6 +52,14 @@ class CoreTests(unittest.TestCase):
     def write_config(self, data):
         self.config_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
+    def test_state_reports_installed_version_and_consumes_update_result(self):
+        status = self.lab.data / 'update-status.txt'
+        status.write_text('updated', encoding='utf-8')
+        first = self.lab.state()
+        self.assertEqual(first['appVersion'], core.APP_VERSION)
+        self.assertEqual(first['updateStatus'], 'updated')
+        self.assertIsNone(self.lab.state()['updateStatus'])
+
     def profile_data(self, settings=None, hardware=None):
         settings = {"limit_total_0": 45, "limit_fast_1": 90} if settings is None else settings
         return {

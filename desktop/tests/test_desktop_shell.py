@@ -90,10 +90,13 @@ class ServerLifetimeTests(unittest.TestCase):
         self.closing = threading.Event()
         self.shutdown_called = threading.Event()
         self.shutdown_callback = Mock(side_effect=self.shutdown_called.set)
+        self.updates = Mock(spec=['check', 'install'])
+        self.updates.check.return_value = {'currentVersion': '0.4.0', 'latestVersion': '0.4.1', 'available': True}
+        self.updates.install.return_value = {'message': 'restarting'}
         self.token = "test-desktop-lifetime-capability"
         self.server = create_server(
             self.lab, Path(__file__).resolve().parent.parent, self.token,
-            closing=self.closing, on_shutdown=self.shutdown_callback,
+            closing=self.closing, on_shutdown=self.shutdown_callback, updates=self.updates,
         )
         self.worker = threading.Thread(
             target=self.server.serve_forever, kwargs={"poll_interval": .01},
@@ -169,6 +172,35 @@ class ServerLifetimeTests(unittest.TestCase):
         self.assertEqual(
             self.request("GET", "/api/state"), (200, {"running": False}),
         )
+
+    def test_update_check_requires_capability_token(self):
+        status, _ = self.request('GET', '/api/update/check', token='wrong-token')
+        self.assertEqual(status, 403)
+        self.updates.check.assert_not_called()
+        self.assertEqual(self.request('GET', '/api/update/check')[0], 200)
+        self.updates.check.assert_called_once_with()
+
+    def test_update_install_rejects_active_benchmark(self):
+        self.lab.running = True
+        status, payload = self.request('POST', '/api/update/install', {})
+        self.assertEqual(status, 400)
+        self.assertIn('성능 비교', payload['error'])
+        self.updates.install.assert_not_called()
+        self.assertFalse(self.closing.is_set())
+
+    def test_update_install_starts_shutdown_only_after_preparation(self):
+        status, payload = self.request('POST', '/api/update/install', {})
+        self.assertEqual((status, payload['message']), (200, 'restarting'))
+        self.updates.install.assert_called_once_with()
+        self.assertTrue(self.closing.is_set())
+        self.assertTrue(self.shutdown_called.wait(timeout=2))
+
+    def test_failed_update_preparation_keeps_app_running(self):
+        self.updates.install.side_effect = ValueError('download failed')
+        status, payload = self.request('POST', '/api/update/install', {})
+        self.assertEqual((status, payload['error']), (400, 'download failed'))
+        self.assertFalse(self.closing.is_set())
+        self.shutdown_callback.assert_not_called()
 
 
 if __name__ == "__main__":

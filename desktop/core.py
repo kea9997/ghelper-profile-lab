@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import windows_bridge as bridge
 from result_reader import parse_result
+from updater import APP_VERSION
 
 MODES = {2: '조용', 0: '균형', 1: '터보'}
 RANGES = {'limit_total': (0,150), 'limit_slow': (0,150), 'limit_fast': (0,150), 'limit_cpu': (0,150),
@@ -94,6 +95,12 @@ class Lab:
     def verified(self): return bool(self.prefs.get('config_path') or self.discovery.get('config_verified'))
     def state(self):
         with self.lock:
+            update_status_file=self.data/'update-status.txt'
+            try:
+                update_status=update_status_file.read_text(encoding='utf-8').strip()
+                update_status_file.unlink(missing_ok=True)
+            except FileNotFoundError: update_status=None
+            if update_status not in ('updated','failed'): update_status=None
             discovery={**self.discovery,'ghelper_running':bridge.ghelper_running()}
             discovery['config_verified']=self.verified()
             try: discovery['config_path']=str(self.config_path()); config=self.config()
@@ -104,7 +111,8 @@ class Lab:
             return {'hardware':self.hardware,'discovery':discovery,'config':config,
                     **{k:self.db[k] for k in ('profiles','runs','backups')},'catalog':catalog,
                     'benchmark':dict(self.benchmark),'communityUrl':'https://ghelper.optiwork.co.kr',
-                    'releaseUrl':'https://github.com/kea9997/ghelper-profile-lab/releases/latest','appVersion':'0.3.1'}
+                    'releaseUrl':'https://github.com/kea9997/ghelper-profile-lab/releases/latest','appVersion':APP_VERSION,
+                    'updateStatus':update_status}
     def refresh(self):
         self.discovery=bridge.discover(); return self.state()
     def select_config(self,path):

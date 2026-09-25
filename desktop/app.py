@@ -4,9 +4,12 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 from core import Lab
+from updater import UpdateService
 
-def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, community=None):
+def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, community=None, updates=None):
     closing = closing or threading.Event()
+    updating = threading.Event()
+    update_lock = threading.Lock()
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*a): pass
         def send(self,obj,status=200,filename=None):
@@ -38,6 +41,9 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
             if not self.authorized(): self.send({'error':'세션 인증 실패'},403); return
             try:
                 if parsed.path=='/api/state': self.send(lab.state())
+                elif parsed.path=='/api/update/check':
+                    if updates is None: raise ValueError('업데이트 확인을 사용할 수 없습니다.')
+                    self.send(updates.check())
                 elif parsed.path=='/api/profiles/export': self.send(lab.profile(parse_qs(parsed.query).get('id',[''])[0]),filename='profile.ghprofile.json')
                 elif parsed.path.startswith('/api/community/'):
                     if community is None: raise ValueError('자료실 연결을 사용할 수 없습니다.')
@@ -67,6 +73,22 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                     if community is None: raise ValueError('자료실 연결을 사용할 수 없습니다.')
                     if closing.is_set(): raise ValueError('프로그램을 종료하고 있습니다.')
                     self.send(remote_routes[path]()); return
+                if path=='/api/update/install':
+                    if updates is None: raise ValueError('자동 업데이트를 사용할 수 없습니다.')
+                    if not update_lock.acquire(blocking=False): raise ValueError('업데이트를 이미 준비하고 있습니다.')
+                    updating.set()
+                    try:
+                        with lab.lock:
+                            if lab.active(): raise ValueError('성능 비교를 마친 뒤 업데이트해 주세요.')
+                            if closing.is_set(): raise ValueError('프로그램을 종료하고 있습니다.')
+                        result=updates.install()
+                        closing.set()
+                        try: self.send(result)
+                        finally: threading.Thread(target=on_shutdown or self.server.shutdown,daemon=True).start()
+                    finally:
+                        updating.clear()
+                        update_lock.release()
+                    return
                 routes={
                     '/api/refresh':lambda:lab.refresh(),
                     '/api/config':lambda:lab.select_config(body['path']),
@@ -84,12 +106,14 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                 if path=='/api/shutdown':
                     with lab.lock:
                         if lab.active(): raise ValueError('테스트를 중단하고 원래 모드로 복원한 뒤 종료하세요.')
+                        if updating.is_set(): raise ValueError('업데이트 준비가 끝날 때까지 기다려 주세요.')
                         closing.set()
                     self.send({'message':'프로그램이 종료되었습니다.'})
                     threading.Thread(target=on_shutdown or self.server.shutdown,daemon=True).start(); return
                 if path not in routes: self.send({'error':'찾을 수 없습니다.'},404); return
                 with lab.lock:
                     if closing.is_set(): raise ValueError('프로그램을 종료하고 있습니다.')
+                    if updating.is_set() and path=='/api/benchmark/start': raise ValueError('업데이트를 준비하는 중입니다.')
                     result=routes[path]()
                 self.send(result)
             except (ValueError,KeyError,TypeError,OSError) as e: self.send({'error':str(e)},400)
@@ -122,7 +146,7 @@ def main():
             if host: host.finish_exit()
             else: server.shutdown()
         from community import CommunityService
-        server=create_server(lab,assets,token,args.port,closing,shutdown,CommunityService(lab))
+        server=create_server(lab,assets,token,args.port,closing,shutdown,CommunityService(lab),UpdateService(data))
         url=f'http://127.0.0.1:{server.server_port}/?session={token}'
         if args.ready_file:
             from core import atomic_json
