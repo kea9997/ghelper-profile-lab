@@ -1,6 +1,6 @@
 # G-Helper Profile Lab API
 
-`ghelper.optiwork.co.kr`에서 운영하는 Cloudflare Worker입니다. 단일 ES module인 `worker.mjs`와 D1 바인딩 `DB`를 사용합니다. npm 런타임 의존성은 없으며 `node:crypto`는 Workers의 `nodejs_compat` 내장 기능으로 사용합니다. 자료실 화면은 Windows 앱에 포함되어 있습니다.
+`ghelper.optiwork.co.kr`에서 운영하는 Cloudflare Worker입니다. `worker.mjs`, 읽기 전용 웹 화면 `site.mjs`, D1 바인딩 `DB`를 사용합니다. npm 런타임 의존성은 없으며 `node:crypto`는 Workers의 `nodejs_compat` 내장 기능으로 사용합니다. 자료실은 웹에서 둘러볼 수 있고 설정 적용·게시 기능은 Windows 앱에 있습니다.
 
 ## 실행과 구성
 
@@ -14,7 +14,7 @@
 | `SERVICE_ORIGIN` | 정확한 허용 Origin. 기본값 `https://ghelper.optiwork.co.kr` |
 | `RELEASE_URL` | HTTPS GitHub 배포 링크. 비어 있으면 다운로드 미설정 안내 |
 
-`GET /`는 짧은 안내와 `RELEASE_URL` 링크만 제공합니다. 웹 자료실 UI는 없습니다.
+`GET /`는 프로그램 설명, 다운로드 링크와 공개 설정 자료실을 제공합니다. 웹 화면은 같은 출처의 `GET /api/profiles`를 읽어 모델·CPU·GPU 검색, 설정값과 Time Spy 점수·소음·팬 RPM을 표시합니다. 게시물이 없으면 빈 상태를 보여줍니다. `GET /site.css`, `GET /site.js`는 웹 화면 자산입니다. 웹에는 설정 적용·게시 요청이 없습니다.
 
 ## API 계약
 
@@ -67,7 +67,7 @@ DELETE 본문은 `{ "deleteToken": "64자리 소문자 hex" }`만 허용하며 �
 
 ## 검증 범위
 
-Node v24.19.0 / SQLite 3.53.3에서 실제 SQL을 사용한 회귀 테스트 9개를 통과했습니다. 동시 재시도, 20건 한도, 트랜잭션 실패 롤백, 삭제 재시도와 삭제 후 재게시 방지, Unicode 모델 커서, 크기 한도, 비공개 필드 거부와 점수 바인딩, Origin·HTTP 오류, 최소 안내 페이지를 검증합니다. 배포된 Worker의 HTTPS·상태 조회·D1 목록 응답도 확인했습니다. 운영 서버 게시·삭제까지 수행한 통합 검증은 아닙니다.
+Node/SQLite 회귀 테스트는 동시 재시도, 20건 한도, 트랜잭션 실패 롤백, 삭제 재시도와 삭제 후 재게시 방지, Unicode 모델 커서, 크기 한도, 비공개 필드 거부와 점수 바인딩, Origin·HTTP 오류, 공개 웹 화면·자산을 검증합니다. 운영 서버 게시·삭제까지 수행한 통합 검증은 아닙니다.
 
 현재 공식 문서 확인일: 2026-09-24.
 

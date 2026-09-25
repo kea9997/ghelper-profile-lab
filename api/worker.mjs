@@ -1,5 +1,6 @@
 // Dependency-free Worker ES module. Stored scores remain user reports.
 import { timingSafeEqual } from 'node:crypto';
+import { SITE_CSS, SITE_JS, siteHtml } from './site.mjs';
 
 export const MAX_BODY_BYTES = 128 * 1024;
 export const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -325,13 +326,20 @@ function landing(env) {
     }
     release = url.href.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
   }
-  return new Response(`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>G-Helper Profile Lab 자료실</title><style>body{font:18px/1.7 system-ui;max-width:660px;margin:12vh auto;padding:24px;color:#eaf0ff;background:#101522}a{color:#94c9ff}small{color:#b0bdd4}</style><main><h1>G-Helper Profile Lab</h1><p>프리셋 자료실은 Windows 앱에서 사용할 수 있습니다.</p>${release ? `<p><a href="${release}" rel="noopener noreferrer">GitHub에서 Windows 앱 받기</a></p>` : '<p>앱 다운로드 링크가 아직 설정되지 않았습니다.</p>'}<small>게시된 설정과 점수는 사용자가 제공한 자료입니다.</small></main></html>`, {
+  return new Response(siteHtml(release), {
     headers: {
       'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
-      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
     },
   });
+}
+
+function siteAsset(source, mime) {
+  return new Response(source, { headers: {
+    'Content-Type': mime + '; charset=utf-8', 'Cache-Control': 'public, max-age=300',
+    'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
+  } });
 }
 
 export default {
@@ -341,6 +349,8 @@ export default {
       const url = new URL(request.url);
       const path = url.pathname;
       if (path === '/' && request.method === 'GET') return landing(env);
+      if (path === '/site.css' && request.method === 'GET') return siteAsset(SITE_CSS, 'text/css');
+      if (path === '/site.js' && request.method === 'GET') return siteAsset(SITE_JS, 'application/javascript');
       const known = path === '/api/health' || path === '/api/profiles' || path.startsWith('/api/profiles/');
       if (!known) fail(404, 'not_found', '요청한 주소가 없습니다.');
       if (path === '/api/health') {

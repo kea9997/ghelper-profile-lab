@@ -252,12 +252,24 @@ test('HTTP contract rejects arbitrary origins, unsupported content, invalid IDs 
   assert.equal(JSON.stringify(await missing.json()).includes('Missing DB'), false);
 });
 
-test('landing contains only configured GitHub release link and no library UI', async t => {
+test('public site serves searchable library and read-only assets', async t => {
   const env = fixture(t);
   const response = await request(env, '/');
   const html = await response.text();
   assert.equal(response.status, 200);
   assert.ok(html.includes(env.RELEASE_URL));
+  assert.ok(html.includes('id="profile-list"'));
+  assert.ok(html.includes('id="search-input"'));
+  assert.ok(html.includes('G-Helper 설정'));
+  assert.ok(html.includes('/site.js'));
   assert.ok(response.headers.get('Content-Security-Policy').includes("frame-ancestors 'none'"));
+  assert.ok(response.headers.get('Content-Security-Policy').includes("script-src 'self'"));
+  const script = await request(env, '/site.js');
+  assert.equal(script.status, 200);
+  assert.match(script.headers.get('Content-Type'), /^application\/javascript/);
+  assert.ok((await script.text()).includes("fetch('/api/profiles?"));
+  const css = await request(env, '/site.css');
+  assert.equal(css.status, 200);
+  assert.match(css.headers.get('Content-Type'), /^text\/css/);
   assert.equal((await request({ ...env, RELEASE_URL: 'javascript:alert(1)' }, '/')).status, 503);
 });
