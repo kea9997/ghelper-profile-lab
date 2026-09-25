@@ -10,8 +10,8 @@ export function siteHtml(release) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="G-Helper Profile Lab에서 ASUS 노트북 설정을 저장하고, Time Spy 결과와 함께 공유된 설정을 찾아보세요.">
   <title>G-Helper Profile Lab | 설정 공유 자료실</title>
-  <link rel="stylesheet" href="/site.css">
-  <script src="/site.js" defer></script>
+  <link rel="stylesheet" href="/site.css?v=20260925b">
+  <script src="/site.js?v=20260925b" defer></script>
 </head>
 <body>
   <header class="topbar wrap">
