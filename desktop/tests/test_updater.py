@@ -86,7 +86,7 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(args[1:5], ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden'])
         self.assertTrue(kwargs['creationflags'] & subprocess.CREATE_NO_WINDOW)
         script = base64.b64decode(args[-1]).decode('utf-16le')
-        self.assertIn(str(executable), script)
+        self.assertIn(str(executable.resolve()), script)
         self.assertEqual(len(list(self.root.glob('.GHelperProfileLab-update-*.exe'))), 1)
         self.assertFalse(staged.exists())
 
