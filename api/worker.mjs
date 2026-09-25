@@ -124,7 +124,7 @@ function searchQuery(value) {
     .replace(/\b(rtx|gtx)(?=\d)/gi, '$1 ').replace(/(?<=\d)(?=gb\b)/gi, ' ')
     .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   if ([...normalized].length > 160) fail(400, 'invalid_query', '검색어를 확인하세요.');
-  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const tokens = normalized.split(/\s+/).filter(token => token && token !== 'gb');
   if (tokens.length > 12 || tokens.some(token => [...token].length > 40)) {
     fail(400, 'invalid_query', '검색어는 12개 단어까지 입력할 수 있습니다.');
   }
@@ -211,12 +211,7 @@ async function listProfiles(url, db) {
   const clauses = [];
   const parameters = [];
   if (model) { clauses.push('model = ?'); parameters.push(model); }
-  const searchable = [
-    'model', "lower(model) || ' ' || json_extract(payload, '$.profile.hardware.model)", 'author', "json_extract(payload, '$.profile.name')",
-    "json_extract(payload, '$.profile.notes')", "json_extract(payload, '$.profile.hardware.cpu')",
-    "CAST(json_extract(payload, '$.profile.hardware.gpu') AS TEXT)",
-    "CAST(CAST(json_extract(payload, '$.profile.hardware.ram_gb') AS INTEGER) AS TEXT) || 'gb'",
-  ];
+  const searchable = ['model', 'author', 'payload'];
   for (const word of query.tokens) {
     clauses.push(`(${searchable.map(column => `lower(${column}) LIKE ?`).join(' OR ')})`);
     parameters.push(...searchable.map(() => `%${word}%`));
