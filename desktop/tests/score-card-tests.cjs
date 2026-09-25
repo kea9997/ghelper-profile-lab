@@ -9,7 +9,7 @@ const run = (mode, totalScore, settingsHash = 'current', createdAt = '2026-09-25
   graphicsScore: 12000, cpuScore: 8000, sourceFile: 'private/path.xml', notes: 'private note',
 });
 
-test('score image uses only captured valid results from the latest settings', () => {
+test('score image uses only linked valid results from the latest settings', () => {
   const rows = [run(2, 8100), run(0, 10400), run(1, 13000),
     run(1, 18000, 'old', '2026-09-24T07:00:00Z'),
     {...run(0, 20000), binding: 'imported'},
@@ -18,6 +18,20 @@ test('score image uses only captured valid results from the latest settings', ()
   assert.equal(data.best.run.totalScore, 13000);
   assert.deepEqual(data.modes.map(mode => mode.run.totalScore), [8100, 10400, 13000]);
   assert.equal(ScoreCard.build([run(1, 18000, '')], {}), null);
+});
+
+test('manual score can be exported and stays visibly marked', () => {
+  const data = ScoreCard.build([{...run(1, 17783), binding: 'manual'}], {});
+  assert.equal(data.best.run.totalScore, 17783);
+  const drawn = [];
+  const ctx = {
+    fillText(value) {drawn.push(String(value));}, fillRect() {}, beginPath() {}, roundRect() {},
+    fill() {}, arc() {}, save() {}, restore() {},
+    measureText(value) {return {width: String(value).length * 14};},
+    createLinearGradient() {return {addColorStop() {}};},
+  };
+  ScoreCard.draw(ctx, data);
+  assert.ok(drawn.some(value => value.includes('직접 연결한 점수 포함')));
 });
 
 test('PNG has expected dimensions and excludes private result fields', async () => {

@@ -99,6 +99,7 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                     '/api/backups/restore':lambda:lab.restore(body['id']),
                     '/api/results/scan':lambda:lab.scan(),
                     '/api/results/annotate':lambda:lab.annotate(body['id'],body.get('noiseDbA'),body.get('fanRpm'),body.get('notes','')),
+                    '/api/results/link':lambda:lab.link_result(body['id'],body['profileId'],body['mode'],body.get('confirmed',False)),
                     '/api/benchmark/start':lambda:lab.start(body.get('driver','guided'),body.get('cooldownSeconds',120)),
                     '/api/benchmark/cancel':lambda:lab.cancel_run(),
                     '/api/community/prepare':lambda:lab.share_bundle(body['profileId'],body.get('runIds',[]),body.get('author','익명')),

@@ -1,4 +1,4 @@
-/* A local PNG for sharing a captured Time Spy comparison. Nothing is uploaded. */
+/* A local PNG for sharing Time Spy scores linked to a saved profile. Nothing is uploaded. */
 (function (root, factory) {
   'use strict';
   const api = factory();
@@ -7,7 +7,7 @@
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   'use strict';
   const MODES = [{id: 2, name: '조용'}, {id: 0, name: '균형'}, {id: 1, name: '터보'}];
-  const valid = run => run && run.binding === 'captured' && run.status === 'valid' &&
+  const valid = run => run && ['captured', 'manual'].includes(run.binding) && run.status === 'valid' &&
     typeof run.settingsHash === 'string' && run.settingsHash.length > 0 &&
     Number.isFinite(run.totalScore) && run.totalScore > 0 && MODES.some(mode => mode.id === run.mode);
   const text = (value, fallback) => typeof value === 'string' && value.trim() ? value.trim() : fallback;
@@ -89,7 +89,8 @@
     });
     ctx.fillStyle = '#94aeb6'; ctx.font = '14px "Segoe UI", "Malgun Gothic", sans-serif';
     const date = data.date && Number.isFinite(Date.parse(data.date)) ? new Date(data.date).toLocaleDateString('ko-KR') + '  ·  ' : '';
-    ctx.fillText(date + '소음·팬 속도는 사용자가 입력한 값 · 점수는 사용자 기록', 56, 648);
+    const manual = data.modes.some(mode => mode.run?.binding === 'manual');
+    ctx.fillText(date + (manual ? '직접 연결한 점수 포함 · 측정 당시 설정 미검증' : '소음·팬 속도는 사용자가 입력한 값 · 점수는 사용자 기록'), 56, 648);
     ctx.textAlign = 'right'; ctx.fillText('ghelper.optiwork.co.kr', 1147, 648); ctx.textAlign = 'left';
   }
 

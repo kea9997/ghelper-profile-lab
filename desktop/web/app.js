@@ -52,7 +52,7 @@ function startBenchmark(){const body=node('div',null,'stack');body.append(node('
 function renderRuns(){
   const runs=state.runs||[];
   $('run-count').textContent=runs.length+'회';
-  $('past-result-note').hidden=!runs.some(r=>r.binding!=='captured');
+  $('past-result-note').hidden=!runs.some(r=>r.binding==='unbound');
   memo('run-list',runs,target=>{
     if(!runs.length){target.append(notice('아직 측정한 점수가 없어요. 비교를 마치면 이곳에 나타납니다.'));return;}
     const sorted=[...runs].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
@@ -74,15 +74,42 @@ function renderRuns(){
       });
       target.append(grid,node('p','PNG에는 기종·CPU·GPU·점수와 직접 입력한 소음·팬 속도만 들어갑니다. 온라인에 자동 게시하지 않아요.','small muted score-caption'));
     }
+    const direct=sorted.filter(r=>r.status==='valid'&&r.binding==='unbound');
+    if(direct.length){const box=node('div',null,'stack');box.append(node('strong','직접 실행한 점수 '+direct.length+'개를 설정에 연결할 수 있어요.'));for(const r of direct.slice(0,3)){const row=node('div',null,'row between');row.append(node('span',number(r.totalScore)+'점 · '+date(r.createdAt)),button('설정 연결',()=>showLinkRun(r),'btn secondary tiny'));box.append(row);}target.append(box);}
     const history=node('div',null,'stack');
-    sorted.forEach(r=>{const row=node('div',null,'row between'),info=node('div');info.append(node('strong',(r.binding==='captured'?modeName(r.mode):'지난 기록')+' · '+(r.status==='valid'?number(r.totalScore)+'점':'측정 실패')),node('p',date(r.createdAt)+(r.binding!=='captured'?' · 당시 설정을 알 수 없어요':''),'small muted'));row.append(info,button('자세히',()=>showRun(r),'btn text'));history.append(row);});
+    sorted.forEach(r=>{const row=node('div',null,'row between'),info=node('div');info.append(node('strong',(r.binding==='unbound'?'연결되지 않은 기록':modeName(r.mode))+' · '+(r.status==='valid'?number(r.totalScore)+'점':'측정 실패')),node('p',date(r.createdAt)+(r.binding==='unbound'?' · 설정을 직접 연결할 수 있어요':r.binding==='manual'?' · 사용자가 설정을 연결했어요':''),'small muted'));row.append(info);if(r.status==='valid'&&r.binding!=='captured')row.append(button(r.binding==='manual'?'연결 수정':'설정 연결',()=>showLinkRun(r),'btn secondary tiny'));row.append(button('자세히',()=>showRun(r),'btn text'));history.append(row);});
     target.append(detail('전체 기록 보기 · '+runs.length+'회',history,'all-runs'));
   });
 }
-function showRun(r){const body=node('div',null,'stack');body.append(detailsList([['Time Spy',r.status==='valid'?number(r.totalScore)+'점':'정상 점수 없음'],['모드',r.binding==='captured'?modeName(r.mode):'당시 설정을 알 수 없음'],['측정 시각',date(r.createdAt)],['그래픽 / CPU 점수',number(r.graphicsScore)+' / '+number(r.cpuScore)]]));const form=node('form');form.id='run-form';for(const [id,label,value,max,step]of [['noise','소음 (dBA)',r.noiseDbA,140,.1],['rpm','팬 속도 (RPM)',r.fanRpm,20000,1]]){const f=node('div',null,'field'),l=node('label',label);l.htmlFor=id;const input=node('input');Object.assign(input,{id,type:'number',min:0,max,step,value:value??'',placeholder:'측정한 값이 있을 때만 입력'});f.append(l,input);form.append(f);}const l=node('label','메모');l.htmlFor='run-notes';const notes=node('textarea');notes.id='run-notes';notes.maxLength=2000;notes.value=r.notes||'';notes.placeholder='예: 거치대 사용, 소음계 30cm 거리';form.append(l,notes,node('p','소음과 팬 속도는 직접 측정한 값을 적어 주세요.','small muted'));body.append(form,detail('기술 정보',node('pre',JSON.stringify({settingsHash:r.settingsHash,temperatures:r.temperatures,sourceFile:r.sourceFile},null,2),'code')));openModal('점수와 사용 환경',body,'기록 저장',async()=>{if(!form.reportValidity())return false;await api('/api/results/annotate',{id:r.id,noiseDbA:$('noise').value===''?null:Number($('noise').value),fanRpm:$('rpm').value===''?null:Number($('rpm').value),notes:notes.value});await refresh();showToast('기록을 저장했어요.');});form.addEventListener('submit',e=>{e.preventDefault();$('modal-confirm').click();});}
+function showRun(r){const body=node('div',null,'stack');body.append(detailsList([['Time Spy',r.status==='valid'?number(r.totalScore)+'점':'정상 점수 없음'],['모드',r.binding==='unbound'?'당시 설정을 알 수 없음':modeName(r.mode)+(r.binding==='manual'?' · 직접 연결':'')],['측정 시각',date(r.createdAt)],['그래픽 / CPU 점수',number(r.graphicsScore)+' / '+number(r.cpuScore)]]));const form=node('form');form.id='run-form';for(const [id,label,value,max,step]of [['noise','소음 (dBA)',r.noiseDbA,140,.1],['rpm','팬 속도 (RPM)',r.fanRpm,20000,1]]){const f=node('div',null,'field'),l=node('label',label);l.htmlFor=id;const input=node('input');Object.assign(input,{id,type:'number',min:0,max,step,value:value??'',placeholder:'측정한 값이 있을 때만 입력'});f.append(l,input);form.append(f);}const l=node('label','메모');l.htmlFor='run-notes';const notes=node('textarea');notes.id='run-notes';notes.maxLength=2000;notes.value=r.notes||'';notes.placeholder='예: 거치대 사용, 소음계 30cm 거리';form.append(l,notes,node('p','소음과 팬 속도는 직접 측정한 값을 적어 주세요.','small muted'));body.append(form,detail('기술 정보',node('pre',JSON.stringify({settingsHash:r.settingsHash,temperatures:r.temperatures,sourceFile:r.sourceFile},null,2),'code')));openModal('점수와 사용 환경',body,'기록 저장',async()=>{if(!form.reportValidity())return false;await api('/api/results/annotate',{id:r.id,noiseDbA:$('noise').value===''?null:Number($('noise').value),fanRpm:$('rpm').value===''?null:Number($('rpm').value),notes:notes.value});await refresh();showToast('기록을 저장했어요.');});form.addEventListener('submit',e=>{e.preventDefault();$('modal-confirm').click();});}
+function showLinkRun(r){
+  const profiles=(state.profiles||[]).filter(p=>p.origin==='local');
+  if(!profiles.length){openModal('저장한 설정이 필요해요',node('p','측정 당시 사용한 G-Helper 설정이 저장되어 있어야 점수와 연결할 수 있습니다.'));return;}
+  const body=node('div',null,'stack');
+  body.append(notice(number(r.totalScore)+'점 · '+date(r.createdAt)+'에 가져온 결과입니다.'),node('p','측정 당시 사용한 저장 설정과 모드를 직접 선택해 주세요. 앱은 과거의 설정을 자동으로 검증할 수 없습니다.','small muted'));
+  const form=node('form');
+  const profileLabel=node('label','측정 당시 사용한 저장 설정'),profileSelect=node('select');profileLabel.htmlFor='link-profile';profileSelect.id='link-profile';profileSelect.required=true;
+  const placeholder=node('option','저장 설정을 선택하세요');placeholder.value='';profileSelect.append(placeholder);
+  for(const p of profiles){const option=node('option',p.name+' · '+date(p.createdAt)+' · '+modeName(p.activeMode));option.value=p.id;profileSelect.append(option);}
+  profileSelect.value=profiles.some(p=>p.id===r.profileId)?r.profileId:'';
+  const modeLabel=node('label','측정 당시 G-Helper 모드'),modeSelect=node('select');modeLabel.htmlFor='link-mode';modeSelect.id='link-mode';modeSelect.required=true;
+  const modePlaceholder=node('option','모드를 선택하세요');modePlaceholder.value='';modeSelect.append(modePlaceholder);
+  for(const mode of [2,0,1]){const option=node('option',modeName(mode));option.value=String(mode);modeSelect.append(option);}
+  modeSelect.value=r.mode==null?'':String(r.mode);
+  const checkLabel=node('label',null,'check-row'),check=node('input');check.type='checkbox';check.required=true;
+  checkLabel.append(check,node('span','이 결과를 측정할 때 선택한 설정과 모드를 실제로 사용했습니다.'));
+  form.append(profileLabel,profileSelect,modeLabel,modeSelect,checkLabel);
+  body.append(form,notice('연결한 점수는 공유할 수 있으며, 공개 측정 메모에 「직접 연결 · 설정 미검증」이 표시됩니다.'));
+  openModal('Time Spy 점수를 설정에 연결',body,'점수 연결',async()=>{
+    if(!form.reportValidity())return false;
+    await api('/api/results/link',{id:r.id,profileId:profileSelect.value,mode:Number(modeSelect.value),confirmed:check.checked});
+    await refresh();showToast('점수를 설정에 연결했어요. 자료실에서 선택해 공유할 수 있습니다.');
+  });
+  form.addEventListener('submit',event=>{event.preventDefault();$('modal-confirm').click();});
+}
 function renderCommunity(){const profiles=state.profiles||[],select=$('public-profile'),selected=select.value||selectedPublic;const sig=JSON.stringify(profiles.map(p=>[p.id,p.name]));if(cache.publicProfiles!==sig){cache.publicProfiles=sig;select.replaceChildren();if(!profiles.length){const o=node('option','내 설정에서 먼저 저장해 주세요');o.value='';select.append(o);}else profiles.forEach(p=>{const o=node('option',p.name);o.value=p.id;select.append(o);});if(profiles.some(p=>p.id===selected))select.value=selected;selectedPublic=select.value;}renderPublicRuns();$('community-url-status').textContent='ghelper.optiwork.co.kr · 사용자 공유 기록';}
-function eligible(p){return (state.runs||[]).filter(r=>p&&r.binding==='captured'&&r.status==='valid'&&r.settingsHash===p.settingsHash);}
-function renderPublicRuns(){const p=(state.profiles||[]).find(p=>p.id===$('public-profile').value),runs=eligible(p);publicSelection=new Set([...publicSelection].filter(id=>runs.some(r=>r.id===id)));memo('public-runs',[p?.id,runs],target=>{if(!runs.length){target.append(node('p','연결된 점수가 없어 설정만 공유합니다.','small muted'));return;}for(const r of runs){const label=node('label',null,'check-row'),check=node('input');check.type='checkbox';check.checked=publicSelection.has(r.id);check.addEventListener('change',()=>check.checked?publicSelection.add(r.id):publicSelection.delete(r.id));label.append(check,node('span',modeName(r.mode)+' · '+number(r.totalScore)+'점 · '+date(r.createdAt)));target.append(label);}});}
+function eligible(p){return (state.runs||[]).filter(r=>p&&['captured','manual'].includes(r.binding)&&r.status==='valid'&&r.settingsHash===p.settingsHash);}
+function renderPublicRuns(){const p=(state.profiles||[]).find(p=>p.id===$('public-profile').value),runs=eligible(p);publicSelection=new Set([...publicSelection].filter(id=>runs.some(r=>r.id===id)));memo('public-runs',[p?.id,runs],target=>{if(!runs.length){target.append(node('p','연결된 점수가 없어 설정만 공유합니다. 지난 결과는 성능 비교 화면에서 설정에 연결할 수 있어요.','small muted'));return;}for(const r of runs){const label=node('label',null,'check-row'),check=node('input');check.type='checkbox';check.checked=publicSelection.has(r.id);check.addEventListener('change',()=>check.checked?publicSelection.add(r.id):publicSelection.delete(r.id));label.append(check,node('span',modeName(r.mode)+' · '+number(r.totalScore)+'점 · '+date(r.createdAt)+(r.binding==='manual'?' · 직접 연결':'')));target.append(label);}});}
 function renderCatalog(){
   const query=$('library-search').value.trim().toLocaleLowerCase(),tokens=query.split(/\s+/).filter(Boolean);
   const entries=(state.catalog?.entries||[]).filter(e=>{

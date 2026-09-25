@@ -8,6 +8,7 @@ from unittest.mock import patch
 import zipfile
 
 import core
+import community
 
 
 HARDWARE = {
@@ -213,7 +214,7 @@ class CoreTests(unittest.TestCase):
             self.lab.restore(outcome["backupId"])
         self.assertEqual(self.config_path.read_bytes(), before)
 
-    def test_historical_scan_stays_unbound_and_cannot_be_claimed_later(self):
+    def test_historical_scan_stays_unbound_until_explicitly_linked(self):
         profile = self.lab.capture("Now")
         path = self.result_file()
         outcome = self.lab.scan()
@@ -227,15 +228,42 @@ class CoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.lab.share_bundle(profile["id"], [run["id"]], "User")
 
+    def test_manual_result_link_requires_attestation_and_keeps_public_provenance(self):
+        profile = self.lab.capture("Measured settings")
+        self.result_file()
+        run = self.lab.scan()["runs"][0]
+        config_before = self.config_path.read_bytes()
+        for mode, confirmed in ((3, True), (0, False), (True, True)):
+            with self.subTest(mode=mode, confirmed=confirmed), self.assertRaises(ValueError):
+                self.lab.link_result(run["id"], profile["id"], mode, confirmed)
+        self.assertEqual(run["binding"], "unbound")
+        linked = self.lab.link_result(run["id"], profile["id"], 1, True)
+        self.assertEqual((linked["binding"], linked["mode"], linked["settingsHash"]),
+                         ("manual", 1, profile["settingsHash"]))
+        self.lab.annotate(run["id"], notes="사용자가 적은 메모")
+        bundle = self.lab.share_bundle(profile["id"], [run["id"]], "User")
+        self.assertTrue(bundle["runs"][0]["notes"].startswith("[직접 연결 · 측정 당시 설정 미검증]"))
+        self.assertIn("사용자가 적은 메모", bundle["runs"][0]["notes"])
+        self.assertEqual(community._bundle(bundle)["runs"][0]["notes"], bundle["runs"][0]["notes"])
+        self.assertEqual(self.config_path.read_bytes(), config_before)
+        other = self.import_profile(settings=profile["settings"])
+        with self.assertRaises(ValueError):
+            self.lab.share_bundle(other["id"], [run["id"]], "User")
+        with self.assertRaises(ValueError):
+            self.lab.link_result(run["id"], other["id"], 1, True)
+
     def test_public_bundle_requires_exact_matching_settings_hash(self):
         profile = self.lab.capture("Current")
         run = self.lab._import_result(self.result_file(), profile, 0)
         self.assertEqual(run["binding"], "captured")
+        with self.assertRaises(ValueError):
+            self.lab.link_result(run["id"], profile["id"], 0, True)
         other = self.import_profile(settings={"limit_total_0": 46})
         with self.assertRaises(ValueError):
             self.lab.share_bundle(other["id"], [run["id"]], "User")
         bundle = self.lab.share_bundle(profile["id"], [run["id"]], "User")
         self.assertEqual(bundle["runs"][0]["settingsHash"], profile["settingsHash"])
+        self.assertEqual(bundle["runs"][0]["notes"], "")
         self.assertNotIn("sourceFile", bundle["runs"][0])
         self.assertNotIn("profileId", bundle["runs"][0])
         self.assertNotIn("id", bundle["profile"])

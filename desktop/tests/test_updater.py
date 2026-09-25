@@ -15,7 +15,7 @@ from unittest.mock import patch
 import updater
 
 
-def release(tag='v0.4.1', content=b'MZtest executable'):
+def release(tag='v0.4.2', content=b'MZtest executable'):
     return {
         'tag_name': tag, 'draft': False, 'prerelease': False, 'body': '변경 사항',
         'assets': [{
@@ -37,11 +37,11 @@ class UpdaterTests(unittest.TestCase):
     def test_version_and_release_validation(self):
         info = updater.release_info(release())
         self.assertEqual(info['currentVersion'], updater.APP_VERSION)
-        self.assertEqual(info['latestVersion'], '0.4.1')
+        self.assertEqual(info['latestVersion'], '0.4.2')
         self.assertTrue(info['available'])
         self.assertFalse(updater.release_info(release('v0.4.0'))['available'])
         self.assertNotIn('downloadUrl', updater.public_info(info))
-        for bad_tag in ('v0.4.1-beta', 'v0.4.1/evil', '0.4.1', 'v999999999999999999999.0.0'):
+        for bad_tag in ('v0.4.2-beta', 'v0.4.2/evil', '0.4.2', 'v999999999999999999999.0.0'):
             with self.subTest(tag=bad_tag), self.assertRaises(ValueError):
                 updater.release_info(release(bad_tag))
 

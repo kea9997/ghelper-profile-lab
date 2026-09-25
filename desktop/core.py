@@ -219,6 +219,20 @@ class Lab:
                 if v is not None and (type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=hi): raise ValueError('측정값 범위를 확인하세요.')
                 r[name]=v
             r['notes']=clean_text(notes,2000); self.save(); return r
+    def link_result(self,id,profileId,mode,confirmed=False):
+        with self.lock:
+            self.require_idle()
+            r=next((r for r in self.db['runs'] if r['id']==id),None)
+            if not r or r['status']!='valid' or r['binding'] not in ('unbound','manual'):
+                raise ValueError('직접 실행한 정상 결과만 설정에 연결할 수 있습니다.')
+            p=self.profile(profileId)
+            if p.get('origin')!='local' or p.get('hardware')!=self.hardware:
+                raise ValueError('이 컴퓨터에서 직접 저장한 설정을 선택하세요.')
+            if type(mode) is not int or mode not in MODES or confirmed is not True:
+                raise ValueError('측정 당시 사용한 설정과 모드를 확인해 주세요.')
+            r.update({'mode':mode,'profileId':p['id'],'settingsHash':p['settingsHash'],
+                      'binding':'manual','manuallyLinkedAt':now()})
+            self.save(); return r
     def share_bundle(self,profileId,runIds,author):
         with self.lock:
             p=self.profile(profileId)
@@ -226,8 +240,12 @@ class Lab:
             runs=[]
             for id in runIds:
                 r=next((r for r in self.db['runs'] if r['id']==id),None)
-                if not r or r['binding']!='captured' or r['settingsHash']!=p['settingsHash'] or r['status']!='valid': raise ValueError('이 설정에서 수집한 정상 결과만 공유할 수 있습니다.')
-                runs.append({k:r.get(k) for k in ('totalScore','graphicsScore','cpuScore','mode','createdAt','noiseDbA','fanRpm','notes','settingsHash')})
+                if not r or r['binding'] not in ('captured','manual') or r['settingsHash']!=p['settingsHash'] or r['status']!='valid' or r['mode'] not in MODES or (r['binding']=='manual' and r['profileId']!=p['id']): raise ValueError('이 설정에 연결한 정상 결과만 공유할 수 있습니다.')
+                public_run={k:r.get(k) for k in ('totalScore','graphicsScore','cpuScore','mode','createdAt','noiseDbA','fanRpm','notes','settingsHash')}
+                if r['binding']=='manual':
+                    marker='[직접 연결 · 측정 당시 설정 미검증]'
+                    public_run['notes']=marker+' '+r['notes'][:2000-len(marker)-1]
+                runs.append(public_run)
             profile={k:p[k] for k in ('schemaVersion','name','notes','hardware','ghelperVersion','settings','settingsHash','activeMode')}
             return {'schemaVersion':1,'kind':'ghelper-profile-share','author':clean_text(author,40) or '익명', 'profile':profile,'runs':runs,'verification':'user-reported'}
     def start(self,driver,cooldownSeconds):

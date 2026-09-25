@@ -52,6 +52,7 @@ function scoreStrip(runs){
     const r=[...(runs||[])].filter(r=>r.mode===mode).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))[0];
     const cell=node('div');cell.append(node('small',modeName(mode)),node('strong',r?number(r.totalScore):'—'));
     cell.append(node('small',r?(r.noiseDbA==null?'소음 미입력':r.noiseDbA+' dBA'):'점수 없음'));
+    if(r?.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]'))cell.append(node('small','사용자가 직접 설정 연결'));
     if(r?.fanRpm!=null)cell.append(node('small',number(r.fanRpm)+' RPM'));
     strip.append(cell);
   }
@@ -142,6 +143,7 @@ async function prepareShare(){
   const body=node('div',null,'stack');
   body.append(node('p','아래 내용을 공개 자료실에 올립니다.'),detailsList([['설정',payload.profile.name],['작성자',payload.author],['제품명',displayHardware(payload.profile.hardware)],['모델 코드',payload.profile.hardware.model],['함께 올릴 점수',payload.runs.length+'개'],['메모',payload.profile.notes||'없음']]));
   if(payload.runs.length)body.append(scoreStrip(payload.runs));
+  if(payload.runs.some(r=>r.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]')))body.append(notice('직접 연결한 점수는 측정 당시 설정을 앱에서 검증하지 못했습니다. 게시물의 측정 메모에 이 사실이 표시됩니다.'));
   for(const r of payload.runs)if(r.notes)body.append(node('p',modeName(r.mode)+' 측정 메모: '+r.notes,'small'));
   body.append(notice('공개하고 싶지 않은 이름이나 메모가 없는지 확인해 주세요.'));
   const visual=node('div');body.append(detail('공유할 설정 보기',visual));ProfileSettings.render(visual,payload.profile.settings,payload.profile.hardware,{mode:payload.profile.activeMode??0,compact:true});

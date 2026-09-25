@@ -11,7 +11,7 @@ export function siteHtml(release) {
   <meta name="description" content="G-Helper Profile Lab에서 ASUS 노트북 설정을 저장하고, Time Spy 결과와 함께 공유된 설정을 찾아보세요.">
   <title>G-Helper Profile Lab | 설정 공유 자료실</title>
   <link rel="stylesheet" href="/site.css?v=20260925c">
-  <script src="/site.js?v=20260925c" defer></script>
+  <script src="/site.js?v=20260926a" defer></script>
 </head>
 <body>
   <header class="topbar wrap">
@@ -199,7 +199,7 @@ export const SITE_JS = String.raw`
     const h = hardware(post);
     item.append(top, node('h3', '', h.title), node('p', 'card-hardware', h.line || '사양 정보 없음'));
     const scores = node('div', 'card-scores');
-    for (const run of latestRuns(post)) scores.append(node('span', '', modeNames[run.mode] + ' ' + score(run)));
+    for (const run of latestRuns(post)) scores.append(node('span', '', modeNames[run.mode] + ' ' + score(run) + (run.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]') ? ' · 직접 연결' : '')));
     if (!scores.childElementCount) scores.append(node('span', '', '벤치마크 기록 없음'));
     item.append(scores);
     const bottom = node('div', 'card-bottom');
@@ -236,6 +236,7 @@ export const SITE_JS = String.raw`
     for (const run of best) {
       const cell = node('div', 'detail-cell');
       cell.append(node('span', '', modeNames[run.mode]), node('strong', '', score(run)));
+      if (run.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]')) cell.append(node('span', '', '사용자가 직접 설정 연결 · 측정 당시 설정은 검증되지 않음'));
       const extras = [run.noiseDbA == null ? '' : String(run.noiseDbA) + ' dB(A)', run.fanRpm == null ? '' : String(run.fanRpm) + ' RPM'].filter(Boolean);
       if (extras.length) cell.append(node('span', '', extras.join(' · ')));
       runGrid.append(cell);
