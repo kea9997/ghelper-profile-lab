@@ -42,8 +42,9 @@ class FakeCommunity:
             raise ValueError("합성 자료실 오류")
         return result
 
-    def browse(self, model, cursor):
-        return self.invoke("browse", (model, cursor), {"posts": [{"id": POST_ID}], "nextCursor": "next-page"})
+    def browse(self, model, cursor, query=""):
+        args = (model, cursor, query) if query else (model, cursor)
+        return self.invoke("browse", args, {"posts": [{"id": POST_ID}], "nextCursor": "next-page"})
 
     def detail(self, id):
         return self.invoke("detail", (id,), {"post": {"id": id}})
