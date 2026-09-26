@@ -13,13 +13,12 @@
     Number.isFinite(run.cpuScore) && run.cpuScore > 0 && MODES.some(mode => mode.id === run.mode);
   const text = (value, fallback) => typeof value === 'string' && value.trim() ? value.trim() : fallback;
   const number = value => Number(value).toLocaleString('ko-KR');
+  const timestamp = run => Number.isFinite(Date.parse(run.createdAt)) ? Date.parse(run.createdAt) : 0;
 
   function build(runs, hardware) {
-    const sorted = [...(runs || [])].filter(valid).sort((a, b) =>
-      String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const sorted = [...(runs || [])].filter(valid).sort((a, b) => timestamp(b) - timestamp(a));
     if (!sorted.length) return null;
-    const matching = sorted.filter(run => run.settingsHash === sorted[0].settingsHash);
-    const modes = MODES.map(mode => ({...mode, run: matching.find(run => run.mode === mode.id) || null}));
+    const modes = MODES.map(mode => ({...mode, run: sorted.find(run => run.mode === mode.id) || null}));
     const best = modes.filter(mode => mode.run).reduce((a, b) =>
       !a || b.run.graphicsScore > a.run.graphicsScore ? b : a, null);
     const gpu = Array.isArray(hardware?.gpu) ? hardware.gpu.find(Boolean) : hardware?.gpu;
@@ -28,6 +27,7 @@
       cpu: text(hardware?.cpu, 'CPU 정보 없음'),
       gpu: text(gpu, 'GPU 정보 없음'),
       modes, best,
+      mixedSettings: new Set(modes.filter(mode => mode.run).map(mode => mode.run.settingsHash)).size > 1,
       date: text(sorted[0].createdAt, ''),
     };
   }
@@ -75,7 +75,7 @@
     ctx.fillText(number(data.best.run.graphicsScore), 48, 414);
     ctx.fillStyle = '#abc1c8'; ctx.font = '16px "Segoe UI", "Malgun Gothic", sans-serif';
     ctx.fillText('CPU 점수 ' + number(data.best.run.cpuScore), 56, 445);
-    ctx.fillText('같은 G-Helper 설정으로 측정한 모드별 Time Spy 결과', 56, 468);
+    ctx.fillText('모드별 마지막 Time Spy 점수 · 설정과 측정 시각이 다를 수 있습니다', 56, 468);
 
     data.modes.forEach((mode, index) => {
       const x = 54 + index * 373, y = 482;

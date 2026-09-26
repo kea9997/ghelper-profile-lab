@@ -61,7 +61,7 @@ function renderRuns(){
     const cardData=ScoreCard.build(sorted,state.hardware);
     if(cardData){
       const heading=node('div',null,'result-heading');
-      heading.append(node('p','같은 설정으로 측정한 모드별 최신 점수','small muted'));
+      heading.append(node('p','조용 · 균형 · 터보의 마지막 측정 점수','small muted'));
       const save=button('내 점수 이미지 저장',()=>act(save,async()=>{
         const image=await ScoreCard.png(state.runs,state.hardware);
         download(image.blob,image.fileName);
@@ -70,11 +70,15 @@ function renderRuns(){
       const grid=node('div',null,'result-grid');
       cardData.modes.forEach(({id,run:r})=>{
         const card=node('article',null,'result-card');
-        card.append(node('h3',modeName(id)),node('span','그래픽 점수','small muted'),node('strong',r?number(r.graphicsScore)+'점':'미측정','result-score'),node('p',r?'CPU 점수 '+number(r.cpuScore)+'점':'CPU 점수 —','small'));
+        card.append(node('h3',modeName(id)),node('span','그래픽 점수','small muted'),node('strong',r?number(r.graphicsScore)+'점':'점수 없음','result-score'),node('p',r?'CPU 점수 '+number(r.cpuScore)+'점':'CPU 점수 —','small'));
         if(r)card.append(node('p',date(r.createdAt),'small muted'),node('p',(r.noiseDbA==null?'소음 미입력':r.noiseDbA+' dBA')+' · '+(r.fanRpm==null?'팬 속도 미입력':number(r.fanRpm)+' RPM'),'small'),button('소음·팬 속도 기록',()=>showRun(r),'btn text'));
+        else card.append(node('p','이 모드에 연결된 결과가 없어요.','small muted'),button('지난 점수 연결',()=>showModeResults(id),'btn secondary tiny'));
+        if(r?.binding==='manual')card.append(node('p','직접 연결한 점수 · 설정 미검증','small muted'));
         grid.append(card);
       });
-      target.append(grid,node('p','PNG에는 기종·CPU·GPU·그래픽·CPU 점수와 직접 입력한 소음·팬 속도만 들어갑니다. 온라인에 자동 게시하지 않아요.','small muted score-caption'));
+      target.append(grid);
+      if(cardData.mixedSettings)target.append(node('p','각 모드에서 마지막으로 측정한 결과입니다. 저장 설정과 측정 시각이 다를 수 있어요.','small muted'));
+      target.append(node('p','PNG에는 기종·CPU·GPU·그래픽·CPU 점수와 직접 입력한 소음·팬 속도만 들어갑니다. 온라인에 자동 게시하지 않아요.','small muted score-caption'));
     }
     const direct=sorted.filter(r=>r.status==='valid'&&r.binding==='unbound');
     if(direct.length){const box=node('div',null,'stack');box.append(node('strong','직접 실행한 점수 '+direct.length+'개를 설정에 연결할 수 있어요.'));for(const r of direct.slice(0,3)){const row=node('div',null,'row between');row.append(node('span',scoreSummary(r)+' · '+date(r.createdAt)),button('설정 연결',()=>showLinkRun(r),'btn secondary tiny'));box.append(row);}target.append(box);}
@@ -84,7 +88,15 @@ function renderRuns(){
   });
 }
 function showRun(r){const body=node('div',null,'stack');body.append(detailsList([['그래픽 점수',r.status==='valid'?number(r.graphicsScore)+'점':'정상 점수 없음'],['CPU 점수',r.status==='valid'?number(r.cpuScore)+'점':'정상 점수 없음'],['모드',r.binding==='unbound'?'당시 설정을 알 수 없음':modeName(r.mode)+(r.binding==='manual'?' · 직접 연결':'')],['측정 시각',date(r.createdAt)]]));const form=node('form');form.id='run-form';for(const [id,label,value,max,step]of [['noise','소음 (dBA)',r.noiseDbA,140,.1],['rpm','팬 속도 (RPM)',r.fanRpm,20000,1]]){const f=node('div',null,'field'),l=node('label',label);l.htmlFor=id;const input=node('input');Object.assign(input,{id,type:'number',min:0,max,step,value:value??'',placeholder:'측정한 값이 있을 때만 입력'});f.append(l,input);form.append(f);}const l=node('label','메모');l.htmlFor='run-notes';const notes=node('textarea');notes.id='run-notes';notes.maxLength=2000;notes.value=r.notes||'';notes.placeholder='예: 거치대 사용, 소음계 30cm 거리';form.append(l,notes,node('p','소음과 팬 속도는 직접 측정한 값을 적어 주세요.','small muted'));body.append(form,detail('기술 정보',node('pre',JSON.stringify({settingsHash:r.settingsHash,temperatures:r.temperatures,sourceFile:r.sourceFile},null,2),'code')));openModal('점수와 사용 환경',body,'기록 저장',async()=>{if(!form.reportValidity())return false;await api('/api/results/annotate',{id:r.id,noiseDbA:$('noise').value===''?null:Number($('noise').value),fanRpm:$('rpm').value===''?null:Number($('rpm').value),notes:notes.value});await refresh();showToast('기록을 저장했어요.');});form.addEventListener('submit',e=>{e.preventDefault();$('modal-confirm').click();});}
-function showLinkRun(r){
+function showModeResults(mode){
+  const rows=(state.runs||[]).filter(r=>r.status==='valid'&&r.binding==='unbound');
+  const body=node('div',null,'stack');
+  body.append(node('p',modeName(mode)+'에서 실제 측정한 결과를 선택하세요. 점수만으로 모드를 알 수는 없어요.','small muted'));
+  if(!rows.length)body.append(notice('연결할 지난 결과가 없어요. 「지난 결과 가져오기」 또는 새 성능 비교를 진행해 주세요.'));
+  for(const r of rows){const row=node('div',null,'row between');row.append(node('span',scoreSummary(r)+' · '+date(r.createdAt)),button('이 점수 선택',()=>showLinkRun(r,mode),'btn secondary tiny'));body.append(row);}
+  openModal(modeName(mode)+' 점수 연결',body);
+}
+function showLinkRun(r,suggestedMode=null){
   const profiles=(state.profiles||[]).filter(p=>p.origin==='local');
   if(!profiles.length){openModal('저장한 설정이 필요해요',node('p','측정 당시 사용한 G-Helper 설정이 저장되어 있어야 점수와 연결할 수 있습니다.'));return;}
   const body=node('div',null,'stack');
@@ -97,7 +109,7 @@ function showLinkRun(r){
   const modeLabel=node('label','측정 당시 G-Helper 모드'),modeSelect=node('select');modeLabel.htmlFor='link-mode';modeSelect.id='link-mode';modeSelect.required=true;
   const modePlaceholder=node('option','모드를 선택하세요');modePlaceholder.value='';modeSelect.append(modePlaceholder);
   for(const mode of [2,0,1]){const option=node('option',modeName(mode));option.value=String(mode);modeSelect.append(option);}
-  modeSelect.value=r.mode==null?'':String(r.mode);
+  modeSelect.value=r.mode==null?(suggestedMode==null?'':String(suggestedMode)):String(r.mode);
   const checkLabel=node('label',null,'check-row'),check=node('input');check.type='checkbox';check.required=true;
   checkLabel.append(check,node('span','이 결과를 측정할 때 선택한 설정과 모드를 실제로 사용했습니다.'));
   form.append(profileLabel,profileSelect,modeLabel,modeSelect,checkLabel);

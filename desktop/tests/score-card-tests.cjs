@@ -9,7 +9,7 @@ const run = (mode, totalScore, settingsHash = 'current', createdAt = '2026-09-25
   graphicsScore: totalScore + 500, cpuScore: totalScore - 1000, sourceFile: 'private/path.xml', notes: 'private note',
 });
 
-test('score image uses only linked valid results from the latest settings', () => {
+test('score comparison uses the latest valid linked result for each mode', () => {
   const rows = [run(2, 8100), run(0, 10400), run(1, 13000),
     run(1, 18000, 'old', '2026-09-24T07:00:00Z'),
     {...run(0, 20000), binding: 'imported'},
@@ -20,6 +20,36 @@ test('score image uses only linked valid results from the latest settings', () =
   assert.equal(ScoreCard.build([run(1, 18000, '')], {}), null);
   assert.equal(ScoreCard.build([{...run(1, 13000), graphicsScore: null}], {}), null);
   assert.equal(ScoreCard.build([{...run(1, 13000), cpuScore: null}], {}), null);
+});
+
+test('mode-specific settings hashes do not hide balanced and turbo scores', () => {
+  const rows = [run(2, 14000, 'quiet-settings'), run(0, 16000, 'balanced-settings'),
+    run(1, 19000, 'turbo-settings')];
+  const data = ScoreCard.build(rows, {});
+  assert.deepEqual(data.modes.map(mode => mode.run.totalScore), [14000, 16000, 19000]);
+  assert.equal(data.mixedSettings, true);
+});
+
+test('a new partial comparison preserves older measured modes and ignores unbound records', () => {
+  const rows = [run(2, 14000, 'new', '2026-09-26T07:00:00Z'),
+    run(0, 16000, 'old'), run(1, 19000, 'old'),
+    {...run(1, 22000, 'new', '2026-09-26T08:00:00Z'), binding: 'unbound'},
+    {...run(0, 22000, 'new', '2026-09-26T08:00:00Z'), status: 'failed'}];
+  const before = structuredClone(rows);
+  const data = ScoreCard.build(rows, {});
+  assert.deepEqual(data.modes.map(mode => mode.run.totalScore), [14000, 16000, 19000]);
+  assert.deepEqual(rows, before);
+  assert.deepEqual(ScoreCard.build([rows[0]], {}).modes.map(mode => !!mode.run), [true, false, false]);
+});
+
+test('latest scores follow actual time across timezone offsets', () => {
+  const older = run(2, 12000, 'old', '2026-09-26T09:00:00+09:00');
+  const newer = run(2, 14000, 'new', '2026-09-26T01:00:00Z');
+  const invalid = run(2, 22000, 'invalid', 'unknown');
+  const data = ScoreCard.build([older, newer, invalid], {});
+  assert.equal(data.modes[0].run.totalScore, 14000);
+  assert.equal(data.date, newer.createdAt);
+  assert.equal(data.mixedSettings, false);
 });
 
 test('best mode follows graphics score even when combined score ranks differently', () => {
@@ -67,6 +97,8 @@ test('PNG has expected dimensions and excludes private result fields', async () 
   assert.ok(drawn.some(value => value.includes('43.2 dBA')));
   assert.ok(!drawn.join(' ').includes('private'));
   assert.ok(!drawn.join(' ').includes('current'));
+  assert.ok(drawn.some(value => value.includes('모드별 마지막 Time Spy 점수')));
+  assert.ok(!drawn.some(value => value.includes('같은 G-Helper 설정으로 측정한')));
 });
 
 test('PNG creation reports absent captures and encoder failures', async () => {
