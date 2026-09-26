@@ -558,7 +558,7 @@ export async function validateBundle(input) {
     throw new Error('결과는 최대 20개까지 첨부할 수 있습니다.');
   }
 
-  const runs = input.runs.map((r) => {
+  const runs = await Promise.all(input.runs.map(async (r) => {
     fields(r, [
       'totalScore',
       'graphicsScore',
@@ -568,11 +568,25 @@ export async function validateBundle(input) {
       'noiseDbA',
       'fanRpm',
       'notes',
-      'settingsHash'
+      'settingsHash',
+      'measuredSettings',
+      'measuredSettingsHash'
     ]);
 
     if (r.settingsHash !== hash || ![0, 1, 2].includes(r.mode)) {
       throw new Error('결과와 설정이 연결되지 않았습니다.');
+    }
+    const measured = {};
+    if ('measuredSettings' in r || 'measuredSettingsHash' in r) {
+      const original = settings(r.measuredSettings);
+      const originalHash = await sha(JSON.stringify(canonical(original)));
+      const modeValues = values => Object.fromEntries(Object.entries(values).filter(([key]) => key.endsWith('_' + r.mode)));
+      if (r.measuredSettingsHash !== originalHash ||
+          JSON.stringify(canonical(modeValues(original))) !== JSON.stringify(canonical(modeValues(values)))) {
+        throw new Error('측정 당시 모드 설정과 공유 설정이 일치하지 않습니다.');
+      }
+      measured.measuredSettings = original;
+      measured.measuredSettingsHash = originalHash;
     }
 
     const createdAt = text(r.createdAt, 80);
@@ -596,9 +610,10 @@ export async function validateBundle(input) {
       noiseDbA: number(r.noiseDbA, 0, 140, true),
       fanRpm: number(r.fanRpm, 0, 20000, true),
       notes: text(r.notes, 2000),
-      settingsHash: hash
+      settingsHash: hash,
+      ...measured
     };
-  });
+  }));
 
   return {
     schemaVersion: 1,

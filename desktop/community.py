@@ -158,6 +158,13 @@ def _run(value) -> dict:
         "fanRpm": _number(value.get("fanRpm"), 0, 20000, nullable=True),
         "notes": _text(value.get("notes", ""), 2000), "settingsHash": _hash(value.get("settingsHash")),
     })
+    if 'measuredSettings' in value or 'measuredSettingsHash' in value:
+        from core import checked_settings, digest
+        measured = checked_settings(value.get('measuredSettings'))
+        measured_hash = _hash(value.get('measuredSettingsHash'))
+        if digest(measured) != measured_hash:
+            raise _invalid()
+        result.update({'measuredSettings': measured, 'measuredSettingsHash': measured_hash})
     return result
 
 
@@ -172,6 +179,10 @@ def _bundle(value) -> dict:
     profile = _profile(value.get("profile"))
     runs = [_run(run) for run in runs]
     if any(run["settingsHash"] != profile["settingsHash"] for run in runs):
+        raise _invalid()
+    from core import mode_settings
+    if any('measuredSettings' in run and mode_settings(run['measuredSettings'],run['mode']) !=
+           mode_settings(profile['settings'],run['mode']) for run in runs):
         raise _invalid()
     result = {"schemaVersion": 1, "kind": "ghelper-profile-share", "author": _text(value.get("author"), 40),
               "profile": profile, "runs": runs, "verification": "user-reported"}
@@ -410,11 +421,12 @@ class CommunityService:
         self._save_receipts(entries)
         return {"id": id, "createdAt": created_at, "replayed": replayed}
 
-    def publish(self, profile_id, run_ids, author, request_id):
+    def publish(self, profile_id, run_ids, author, request_id, mode_profile_ids=None):
         request_id = _uuid(request_id)
         with self.lab.lock:
             try:
-                bundle = _bundle(self.lab.share_bundle(profile_id, run_ids, author))
+                bundle = _bundle(self.lab.share_bundle(profile_id, run_ids, author, mode_profile_ids)
+                                 if mode_profile_ids is not None else self.lab.share_bundle(profile_id, run_ids, author))
             except (ValueError, TypeError, KeyError):
                 raise ValueError("공유할 프리셋과 연결된 정상 결과, 작성자 정보를 확인하세요.") from None
         bundle_hash = hashlib.sha256(_encode(bundle)).hexdigest()

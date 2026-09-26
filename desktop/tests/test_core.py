@@ -72,10 +72,10 @@ class CoreTests(unittest.TestCase):
     def import_profile(self, **kwargs):
         return self.lab.import_profile(self.profile_data(**kwargs))
 
-    def result_file(self, name="history.3dmark-result"):
+    def result_file(self, name="history.3dmark-result", graphics=13000):
         path = self.results / name
         xml = ("<Result><TimeSpyPerformance3DMarkScore>12000</TimeSpyPerformance3DMarkScore>"
-               "<TimeSpyPerformanceGraphicsScore>13000</TimeSpyPerformanceGraphicsScore>"
+               f"<TimeSpyPerformanceGraphicsScore>{graphics}</TimeSpyPerformanceGraphicsScore>"
                "<TimeSpyPerformanceCPUScore>10000</TimeSpyPerformanceCPUScore></Result>")
         with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_STORED) as archive:
             archive.writestr("Result.xml", xml)
@@ -275,6 +275,69 @@ class CoreTests(unittest.TestCase):
         run["status"] = "failed"
         with self.assertRaises(ValueError):
             self.lab.share_bundle(profile["id"], [run["id"]], "User")
+
+    def mode_captures(self):
+        captures = {}
+        for mode, watts in ((2, 25), (0, 45), (1, 85)):
+            values = {f'limit_total_{m}': 10 + mode if m != mode else watts for m in (2, 0, 1)}
+            self.write_config({**values, 'performance_mode': mode, 'm4': 'private/local/path'})
+            profile = self.lab.capture(str(mode))
+            run = self.lab._import_result(self.result_file(str(mode)+'.3dmark-result',13000+mode),profile,mode)
+            captures[mode] = (profile,run)
+        return captures
+
+    def test_share_three_modes_merges_only_each_measured_mode_and_preserves_original_hashes(self):
+        captures = self.mode_captures()
+        ids = {str(m): p['id'] for m,(p,r) in captures.items()}
+        before = copy.deepcopy(self.lab.db)
+        bundle = self.lab.share_bundle(captures[2][0]['id'],[r['id'] for p,r in captures.values()],'User',ids)
+        self.assertEqual(bundle['profile']['settings'], {'limit_total_2':25,'limit_total_0':45,'limit_total_1':85})
+        self.assertEqual(bundle['profile']['settingsHash'],core.digest(bundle['profile']['settings']))
+        self.assertEqual([r['mode'] for r in bundle['runs']],[2,0,1])
+        for r in bundle['runs']:
+            self.assertEqual(r['settingsHash'],bundle['profile']['settingsHash'])
+            self.assertEqual(r['measuredSettingsHash'],captures[r['mode']][1]['settingsHash'])
+            self.assertEqual(r['measuredSettings'],captures[r['mode']][0]['settings'])
+        self.assertEqual(community._bundle(bundle),bundle)
+        self.assertEqual(self.lab.db,before)
+        self.assertNotIn('private/local/path',json.dumps(bundle))
+        self.assertNotIn('profileId',json.dumps(bundle))
+        imported = self.lab.import_profile(bundle)
+        self.assertEqual(imported['settings'],bundle['profile']['settings'])
+
+    def test_three_mode_share_rejects_wrong_settings_foreign_hardware_and_duplicate_modes(self):
+        captures = self.mode_captures()
+        ids = {str(m): p['id'] for m,(p,r) in captures.items()}
+        base = captures[2][0]['id']; runs = [r['id'] for p,r in captures.values()]
+        changed = self.import_profile(settings={'limit_total_0':46})
+        foreign = self.import_profile(settings={'limit_total_0':45},hardware={**HARDWARE,'model':'OTHER'})
+        for mappings in ({'0':ids['0']},{**ids,'0':changed['id']},{**ids,'0':foreign['id']}):
+            with self.subTest(mapping=mappings),self.assertRaises(ValueError):
+                self.lab.share_bundle(base,runs,'User',mappings)
+        with self.assertRaises(ValueError): self.lab.share_bundle(base,[runs[0],runs[0]],'User',ids)
+        captures[0][1]['settingsHash']='0'*64
+        with self.assertRaises(ValueError): self.lab.share_bundle(base,runs,'User',ids)
+
+    def test_three_mode_share_marks_manual_records_and_allows_settings_without_scores(self):
+        captures = self.mode_captures()
+        ids = {str(m):p['id'] for m,(p,r) in captures.items()}
+        p,r = captures[0]; r['binding']='manual';r['notes']='User note'
+        bundle = self.lab.share_bundle(captures[2][0]['id'],[r['id']],'User',ids)
+        self.assertTrue(bundle['runs'][0]['notes'].startswith('[직접 연결 · 측정 당시 설정 미검증]'))
+        self.assertIn('User note',bundle['runs'][0]['notes'])
+        empty = self.lab.share_bundle(captures[2][0]['id'],[],'User',ids)
+        self.assertEqual(empty['runs'],[])
+        self.assertEqual(set(empty['profile']['settings']),{'limit_total_0','limit_total_1','limit_total_2'})
+
+    def test_community_checks_mode_projection_and_measurement_hash_in_combined_bundle(self):
+        captures = self.mode_captures(); ids={str(m):p['id'] for m,(p,r) in captures.items()}
+        bundle=self.lab.share_bundle(captures[2][0]['id'],[captures[2][1]['id']],'User',ids)
+        for field in ('measuredSettings','measuredSettingsHash'):
+            altered=copy.deepcopy(bundle); del altered['runs'][0][field]
+            with self.subTest(field=field),self.assertRaises(ValueError): community._bundle(altered)
+        altered=copy.deepcopy(bundle); r=altered['runs'][0];r['measuredSettings']['limit_total_2']=26
+        r['measuredSettingsHash']=core.digest(r['measuredSettings'])
+        with self.assertRaises(ValueError): community._bundle(altered)
 
     def test_config_duplicate_keys_and_nonfinite_json_are_rejected(self):
         for text in ('{"performance_mode":0,"performance_mode":1}', '{"limit_total_0":NaN}'):

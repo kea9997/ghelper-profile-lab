@@ -22,10 +22,12 @@ class FakeLab:
     def active(self):
         return False
 
-    def share_bundle(self, profile_id, run_ids, author):
+    def share_bundle(self, profile_id, run_ids, author, mode_profile_ids=None):
         if not self.lock._is_owned():
             raise AssertionError("Local prepare must preserve the Lab lock")
-        return {"profileId": profile_id, "runIds": run_ids, "author": author}
+        result = {"profileId": profile_id, "runIds": run_ids, "author": author}
+        if mode_profile_ids is not None: result['modeProfileIds']=mode_profile_ids
+        return result
 
 
 class FakeCommunity:
@@ -55,8 +57,10 @@ class FakeCommunity:
     def import_post(self, id):
         return self.invoke("import_post", (id,), {"id": "new-local-profile", "origin": "imported"})
 
-    def publish(self, profile_id, run_ids, author, request_id):
-        return self.invoke("publish", (profile_id, run_ids, author, request_id), {"id": POST_ID, "createdAt": "test-time"})
+    def publish(self, profile_id, run_ids, author, request_id, mode_profile_ids=None):
+        args = (profile_id, run_ids, author, request_id)
+        if mode_profile_ids is not None: args += (mode_profile_ids,)
+        return self.invoke("publish", args, {"id": POST_ID, "createdAt": "test-time"})
 
     def retry(self, request_id):
         return self.invoke("retry", (request_id,), {"id": POST_ID, "replayed": True})
@@ -76,11 +80,12 @@ class HttpCommunityTests(unittest.TestCase):
             "__APP_STYLE__": ("style.css", "/* synthetic app style */"),
             "__SETTINGS_STYLE__": ("settings-view.css", "/* synthetic settings style */"),
             "__SETTINGS_JS__": ("settings-view.js", "/* synthetic settings script */"),
+            "__SHARE_SELECTION_JS__": ("share-selection.js", "/* synthetic three mode selection */"),
             "__APP_JS__": ("app.js", 'const syntheticSession="__SESSION_TOKEN__";'),
             "__LIBRARY_JS__": ("library.js", "/* synthetic community script */"),
         }
         (web / "index.html").write_text("<html><head>__APP_STYLE____SETTINGS_STYLE__</head>"
-                                         "<body>__SETTINGS_JS____APP_JS____LIBRARY_JS__"
+                                         "<body>__SETTINGS_JS____SHARE_SELECTION_JS____APP_JS____LIBRARY_JS__"
                                          "<span>__SESSION_TOKEN__</span></body></html>", encoding="utf-8")
         for filename, fragment in self.fragments.values():
             (web / filename).write_text(fragment, encoding="utf-8")
@@ -150,7 +155,7 @@ class HttpCommunityTests(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertEqual(self.community.calls[-1], (expected_method, expected_args))
 
-    def test_template_inlines_all_five_fragments_and_session_without_placeholders(self):
+    def test_template_inlines_all_fragments_and_session_without_placeholders(self):
         status, headers, raw = self.request("GET", "/?session=" + TOKEN)
         self.assertEqual(status, 200)
         html = raw.decode("utf-8")
@@ -213,6 +218,17 @@ class HttpCommunityTests(unittest.TestCase):
                 status, _, raw = self.request(method, path, body)
                 self.assertEqual(status, expected)
                 self.assertIn("error", json.loads(raw))
+
+    def test_three_mode_selection_is_forwarded_to_prepare_and_publish(self):
+        mapping={'2':'quiet-settings','0':'balanced-settings','1':'turbo-settings'}
+        body={'profileId':'base','runIds':['quiet','balanced','turbo'],'author':'User','modeProfileIds':mapping}
+        status,_,raw=self.request('POST','/api/community/prepare',body)
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(raw)['modeProfileIds'],mapping)
+        self.assertEqual(self.community.calls,[])
+        status,_,_=self.request('POST','/api/community/publish',{**body,'requestId':REQUEST_ID})
+        self.assertEqual(status,200)
+        self.assertEqual(self.community.calls,[('publish',('base',['quiet','balanced','turbo'],'User',REQUEST_ID,mapping))])
 
     def test_local_prepare_keeps_its_lab_lock_and_does_not_invoke_remote_service(self):
         payload = {"profileId": "local-profile", "runIds": ["run-one"], "author": "작성자"}

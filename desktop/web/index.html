@@ -134,13 +134,13 @@ __SETTINGS_STYLE__</style>
   <dialog id="publish-modal" class="modal" aria-labelledby="publish-title">
     <div class="modal-header"><h2 id="publish-title">내 설정 공유</h2><button id="publish-close" class="close-button" type="button" aria-label="공유 창 닫기">×</button></div>
     <div class="modal-body"><form id="community-form">
-      <p class="small muted">설정과 점수를 고르고 공개 내용을 확인하세요. 파일을 저장하거나 브라우저를 열 필요가 없습니다.</p>
+      <p class="small muted">조용·균형·터보의 저장 설정과 최신 점수를 한 게시물로 공유합니다. 각 모드의 측정 당시 설정을 자동으로 선택합니다.</p>
       <div class="share-fields">
-        <div class="field"><label for="public-profile">공유할 설정</label><select id="public-profile"></select></div>
+        <div class="field"><label for="public-profile">묶음 이름·메모에 사용할 저장 설정</label><select id="public-profile"></select></div>
         <div class="field"><label for="public-author">닉네임 <span class="muted">(선택)</span></label><input id="public-author" maxlength="40" placeholder="비우면 익명"></div>
       </div>
-      <h3 class="share-result-heading">함께 공유할 점수 <span class="small muted">(선택)</span></h3><div id="public-runs"></div>
-      <div class="share-footer"><p>이름·메모·노트북 사양과 선택한 점수가 공개됩니다.</p><button id="prepare-community" class="btn primary" type="submit">공개 내용 확인</button></div>
+      <h3 class="share-result-heading">조용 · 균형 · 터보 함께 공유</h3><div id="public-runs"></div>
+      <div class="share-footer"><p>세 모드 설정·노트북 사양·선택한 그래픽 및 CPU 점수가 공개됩니다.</p><button id="prepare-community" class="btn primary" type="submit">3개 모드 공개 내용 확인</button></div>
     </form></div>
   </dialog>
   <dialog id="settings-modal" class="modal" aria-labelledby="settings-title">
@@ -168,6 +168,7 @@ __SETTINGS_STYLE__</style>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-text"></span><button id="toast-close" type="button" aria-label="알림 닫기">×</button></div>
 <script>__SETTINGS_JS__
 __SCORE_CARD_JS__
+__SHARE_SELECTION_JS__
 __APP_JS__
 __LIBRARY_JS__
 initLibrary(); navigate(); refresh();</script>

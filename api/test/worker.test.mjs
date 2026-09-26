@@ -229,6 +229,49 @@ test('strict validation rejects private fields, unbound scores and unsupported s
   assert.equal((await validateBundle(spoofed)).verification, 'user-reported');
 });
 
+test('one post preserves three mode settings, graphics and CPU scores, and original measurement hashes', async t => {
+  const env = fixture(t);
+  const data = await bundle();
+  data.profile.settings = {limit_total_2:25,limit_total_0:45,limit_total_1:85};
+  data.profile.settingsHash = await sha(JSON.stringify({limit_total_0:45,limit_total_1:85,limit_total_2:25}));
+  data.runs = await Promise.all([2,0,1].map(async mode => {
+    const original = {limit_total_0:10,limit_total_1:10,limit_total_2:10};
+    original['limit_total_'+mode]=data.profile.settings['limit_total_'+mode];
+    return {...data.runs[0],mode,graphicsScore:14000+mode,cpuScore:8000+mode,settingsHash:data.profile.settingsHash,
+      measuredSettings:original,measuredSettingsHash:await sha(JSON.stringify(original))};
+  }));
+  const made = await create(env,data);
+  assert.equal(made.response.status,201);
+  assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM profiles').get().n,1);
+  const detail = await (await request(env,'/api/profiles/'+made.value.id)).json();
+  assert.deepEqual(detail.post.profile.settings,data.profile.settings);
+  assert.deepEqual(detail.post.runs.map(r=>[r.mode,r.graphicsScore,r.cpuScore,r.measuredSettingsHash]),
+    data.runs.map(r=>[r.mode,r.graphicsScore,r.cpuScore,r.measuredSettingsHash]));
+  const page=await (await request(env,'/api/profiles')).json();
+  assert.equal(page.posts.length,1);
+  assert.equal(page.posts[0].runs.length,3);
+});
+
+test('combined shares reject tampered measurement hashes, changed mode settings, missing proof and private settings', async () => {
+  const data=await bundle();
+  data.runs[0].measuredSettings={...data.profile.settings};
+  data.runs[0].measuredSettingsHash=data.profile.settingsHash;
+  await validateBundle(data);
+  const wrongHash=structuredClone(data);wrongHash.runs[0].measuredSettingsHash='0'.repeat(64);
+  await assert.rejects(validateBundle(wrongHash),/측정 당시/);
+  const wrongMode=structuredClone(data);wrongMode.runs[0].measuredSettings.limit_slow_0=36;
+  wrongMode.runs[0].measuredSettingsHash=await sha(JSON.stringify(Object.fromEntries(Object.entries(wrongMode.runs[0].measuredSettings).sort())));
+  await assert.rejects(validateBundle(wrongMode),/측정 당시/);
+  for(const key of ['measuredSettings','measuredSettingsHash']){
+    const missing=structuredClone(data);delete missing.runs[0][key];
+    await assert.rejects(validateBundle(missing));
+  }
+  const privateField=structuredClone(data);privateField.runs[0].measuredSettings.m4='C:/private';
+  await assert.rejects(validateBundle(privateField));
+  const legacy=structuredClone(data);delete legacy.runs[0].measuredSettings;delete legacy.runs[0].measuredSettingsHash;
+  assert.equal((await validateBundle(legacy)).runs.length,1);
+});
+
 test('HTTP contract rejects arbitrary origins, unsupported content, invalid IDs and queries', async t => {
   const env = fixture(t);
   const health = await request(env, '/api/health', 'GET', undefined, { Origin: ORIGIN });

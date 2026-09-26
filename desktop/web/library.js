@@ -133,16 +133,19 @@ async function openPublish(){
   if(library.owned.some(p=>!p.id)){
     openModal('이전 업로드를 먼저 확인해 주세요',node('p','연결이 끊긴 업로드가 있습니다. 중복으로 올리지 않도록 「내가 공유한 설정」에서 다시 확인해 주세요.'),'업로드 확인하기',async()=>{$('owned-details').open=true;$('owned-details').scrollIntoView({behavior:'smooth',block:'center'});});return;
   }
+  publicModeProfiles={};publicExcluded.clear();cache['public-runs']=null;
   renderCommunity();$('publish-modal').showModal();
 }
 async function prepareShare(){
   const p=state.profiles.find(p=>p.id===$('public-profile').value);
   if(!p)throw Error('공유할 설정을 먼저 저장해 주세요.');
   const profileId=p.id,runIds=[...publicSelection],author=$('public-author').value.trim()||'익명';
-  const payload=await api('/api/community/prepare',{profileId,runIds,author});
+  const modeProfileIds=Object.fromEntries(publicPlan.map(m=>[String(m.id),m.profile?.id]));
+  const payload=await api('/api/community/prepare',{profileId,runIds,author,modeProfileIds});
   const body=node('div',null,'stack');
   body.append(node('p','아래 내용을 공개 자료실에 올립니다.'),detailsList([['설정',payload.profile.name],['작성자',payload.author],['제품명',displayHardware(payload.profile.hardware)],['모델 코드',payload.profile.hardware.model],['함께 올릴 점수',payload.runs.length+'개'],['메모',payload.profile.notes||'없음']]));
   if(payload.runs.length)body.append(scoreStrip(payload.runs));
+  body.append(node('p','조용·균형·터보의 저장 설정을 한 게시물에 묶습니다. 각 점수는 해당 모드를 측정할 때의 설정과 연결되어 있으며, 측정 시각은 서로 다를 수 있습니다.','small muted'));
   if(payload.runs.some(r=>r.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]')))body.append(notice('직접 연결한 점수는 측정 당시 설정을 앱에서 검증하지 못했습니다. 게시물의 측정 메모에 이 사실이 표시됩니다.'));
   for(const r of payload.runs)if(r.notes)body.append(node('p',modeName(r.mode)+' 측정 메모: '+r.notes,'small'));
   body.append(notice('공개하고 싶지 않은 이름이나 메모가 없는지 확인해 주세요.'));
@@ -152,7 +155,7 @@ async function prepareShare(){
   const requestId=crypto.randomUUID();
   openModal('이 내용을 공유할까요?',body,'자료실에 게시',async()=>{
     try{
-      await api('/api/community/publish',{profileId,runIds,author,requestId});
+      await api('/api/community/publish',{profileId,runIds,author,requestId,modeProfileIds});
       library.loaded=false;await loadLibrary();
       openModal('자료실에 올렸어요',node('p','다른 사용자가 프로그램 안에서 확인하고 적용할 수 있습니다. 「내가 공유한 설정」에서 게시를 취소할 수 있어요.'));return false;
     }catch(e){await loadOwned();throw e;}

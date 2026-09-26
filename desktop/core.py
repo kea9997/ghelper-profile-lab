@@ -36,6 +36,7 @@ def checked_settings(obj):
             out[key]=val
     return out
 def tuning(config): return checked_settings({k:v for k,v in config.items() if known_key(k)})
+def mode_settings(settings,mode): return {k:v for k,v in checked_settings(settings).items() if k.endswith('_'+str(mode))}
 def clean_text(v,limit=200):
     if not isinstance(v,str): raise ValueError('텍스트 형식 오류')
     if len(v)>limit or '\x00' in v: raise ValueError('텍스트가 너무 길거나 잘못되었습니다.')
@@ -233,20 +234,49 @@ class Lab:
             r.update({'mode':mode,'profileId':p['id'],'settingsHash':p['settingsHash'],
                       'binding':'manual','manuallyLinkedAt':now()})
             self.save(); return r
-    def share_bundle(self,profileId,runIds,author):
+    def share_bundle(self,profileId,runIds,author,modeProfileIds=None):
         with self.lock:
             p=self.profile(profileId)
             if not isinstance(runIds,list) or len(runIds)>20: raise ValueError('최대 20개의 결과를 선택하세요.')
+            selected=None
+            profile={k:p[k] for k in ('schemaVersion','name','notes','hardware','ghelperVersion','settings','settingsHash','activeMode')}
+            if modeProfileIds is not None:
+                if not isinstance(modeProfileIds,dict) or set(modeProfileIds)!={'0','1','2'}:
+                    raise ValueError('조용·균형·터보의 저장 설정을 모두 선택하세요.')
+                selected={m:self.profile(modeProfileIds[str(m)]) for m in (2,0,1)}
+                if any(s['hardware']!=p['hardware'] for s in selected.values()):
+                    raise ValueError('같은 노트북의 저장 설정만 함께 공유할 수 있습니다.')
+                merged={}
+                for m,s in selected.items():
+                    if digest(checked_settings(s['settings']))!=s['settingsHash']: raise ValueError('저장 설정의 해시가 일치하지 않습니다.')
+                    merged.update(mode_settings(s['settings'],m))
+                if not merged: raise ValueError('공유할 저장 설정이 없습니다.')
+                profile={**profile,'name':p['name'][:69]+' · 3개 모드','settings':merged,'settingsHash':digest(merged)}
+                if len(runIds)>3 or len(set(runIds))!=len(runIds): raise ValueError('모드별 점수는 하나씩 선택하세요.')
             runs=[]
             for id in runIds:
                 r=next((r for r in self.db['runs'] if r['id']==id),None)
-                if not r or r['binding'] not in ('captured','manual') or r['settingsHash']!=p['settingsHash'] or r['status']!='valid' or r['mode'] not in MODES or (r['binding']=='manual' and r['profileId']!=p['id']): raise ValueError('이 설정에 연결한 정상 결과만 공유할 수 있습니다.')
+                if not r or r['binding'] not in ('captured','manual') or r['status']!='valid' or type(r['mode']) is not int or r['mode'] not in MODES: raise ValueError('설정에 연결한 정상 결과만 공유할 수 있습니다.')
+                measured=None
+                if selected is None:
+                    if r['settingsHash']!=p['settingsHash'] or (r['binding']=='manual' and r['profileId']!=p['id']): raise ValueError('이 설정에 연결한 정상 결과만 공유할 수 있습니다.')
+                else:
+                    measured=self.profile(r['profileId']); target=selected[r['mode']]
+                    if (measured['hardware']!=p['hardware'] or measured.get('origin')!='local' or
+                        digest(checked_settings(measured['settings']))!=r['settingsHash'] or
+                        measured['settingsHash']!=r['settingsHash'] or
+                        mode_settings(measured['settings'],r['mode'])!=mode_settings(target['settings'],r['mode']) or
+                        (r['binding']=='manual' and measured['id']!=target['id']) or
+                        any(old['mode']==r['mode'] for old in runs)):
+                        raise ValueError('각 모드의 측정 당시 설정과 일치하는 점수만 함께 공유할 수 있습니다.')
                 public_run={k:r.get(k) for k in ('totalScore','graphicsScore','cpuScore','mode','createdAt','noiseDbA','fanRpm','notes','settingsHash')}
+                if measured is not None:
+                    public_run.update({'settingsHash':profile['settingsHash'],'measuredSettings':checked_settings(measured['settings']),
+                                       'measuredSettingsHash':r['settingsHash']})
                 if r['binding']=='manual':
                     marker='[직접 연결 · 측정 당시 설정 미검증]'
                     public_run['notes']=marker+' '+r['notes'][:2000-len(marker)-1]
                 runs.append(public_run)
-            profile={k:p[k] for k in ('schemaVersion','name','notes','hardware','ghelperVersion','settings','settingsHash','activeMode')}
             return {'schemaVersion':1,'kind':'ghelper-profile-share','author':clean_text(author,40) or '익명', 'profile':profile,'runs':runs,'verification':'user-reported'}
     def start(self,driver,cooldownSeconds):
         with self.lock:

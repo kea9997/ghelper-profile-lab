@@ -6,6 +6,7 @@ const pages={profiles:'내 설정',benchmark:'성능 비교',community:'설정 �
 let state=null,stopped=false,pollTimer=null,refreshing=false,dialog=null,dialogId=0,toastTimer=null;
 let updateInfo=null,updateChecked=false,updateChecking=false;
 let selectedPublic='',publicSelection=new Set(),cache={},operationPending=false,setupExpanded=false;
+let publicModeProfiles={},publicExcluded=new Set(),publicPlan=[];
 let catalogVisible=18;
 const modeName=v=>({0:'균형',1:'터보',2:'조용'})[v]||'모드 정보 없음';
 const number=v=>typeof v==='number'&&Number.isFinite(v)?v.toLocaleString('ko-KR'):'—';
@@ -122,8 +123,33 @@ function showLinkRun(r,suggestedMode=null){
   form.addEventListener('submit',event=>{event.preventDefault();$('modal-confirm').click();});
 }
 function renderCommunity(){const profiles=state.profiles||[],select=$('public-profile'),selected=select.value||selectedPublic;const sig=JSON.stringify(profiles.map(p=>[p.id,p.name]));if(cache.publicProfiles!==sig){cache.publicProfiles=sig;select.replaceChildren();if(!profiles.length){const o=node('option','내 설정에서 먼저 저장해 주세요');o.value='';select.append(o);}else profiles.forEach(p=>{const o=node('option',p.name);o.value=p.id;select.append(o);});if(profiles.some(p=>p.id===selected))select.value=selected;selectedPublic=select.value;}renderPublicRuns();$('community-url-status').textContent='ghelper.optiwork.co.kr · 사용자 공유 기록';}
-function eligible(p){return (state.runs||[]).filter(r=>p&&['captured','manual'].includes(r.binding)&&r.status==='valid'&&r.settingsHash===p.settingsHash);}
-function renderPublicRuns(){const p=(state.profiles||[]).find(p=>p.id===$('public-profile').value),runs=eligible(p);publicSelection=new Set([...publicSelection].filter(id=>runs.some(r=>r.id===id)));memo('public-runs',[p?.id,runs],target=>{if(!runs.length){target.append(node('p','연결된 점수가 없어 설정만 공유합니다. 지난 결과는 성능 비교 화면에서 설정에 연결할 수 있어요.','small muted'));return;}for(const r of runs){const label=node('label',null,'check-row'),check=node('input');check.type='checkbox';check.checked=publicSelection.has(r.id);check.addEventListener('change',()=>check.checked?publicSelection.add(r.id):publicSelection.delete(r.id));label.append(check,node('span',modeName(r.mode)+' · '+scoreSummary(r)+' · '+date(r.createdAt)+(r.binding==='manual'?' · 직접 연결':'')));target.append(label);}});}
+function renderPublicRuns(){
+  const base=(state.profiles||[]).find(p=>p.id===$('public-profile').value);
+  publicPlan=ShareSelection.plan(state.profiles,state.runs,base,publicModeProfiles);
+  publicSelection=new Set(publicPlan.filter(m=>m.run&&!publicExcluded.has(m.run.id)).map(m=>m.run.id));
+  memo('public-runs',[publicPlan,[...publicSelection]],target=>{
+    const grid=node('div',null,'share-mode-grid');
+    for(const m of publicPlan){
+      const card=node('article',null,'result-card'),r=m.run;
+      card.append(node('h3',m.name),node('span','그래픽 점수','small muted'),node('strong',r?number(r.graphicsScore)+'점':'점수 없음','result-score'),node('p',r?'CPU 점수 '+number(r.cpuScore)+'점':'설정만 공유합니다.','small'));
+      if(r){
+        card.append(node('p',date(r.createdAt),'small muted'));
+        const label=node('label',null,'check-row'),check=node('input');check.type='checkbox';check.checked=publicSelection.has(r.id);
+        check.addEventListener('change',()=>{if(check.checked){publicExcluded.delete(r.id);publicSelection.add(r.id);}else{publicExcluded.add(r.id);publicSelection.delete(r.id);}});
+        label.append(check,node('span','점수 함께 공유','small'));card.append(label);
+        if(r.binding==='manual')card.append(node('p','직접 연결 · 설정 미검증','small muted'));
+      }
+      card.append(node('p',m.profile?.name||'저장 설정 없음','small muted'));
+      const field=node('div',null,'field'),select=node('select');select.setAttribute('aria-label',m.name+' 모드의 저장 설정');
+      for(const p of m.candidates){const option=node('option',p.name+' · '+date(p.createdAt));option.value=p.id;select.append(option);}
+      select.value=m.profile?.id||'';
+      select.addEventListener('change',()=>{publicModeProfiles[m.id]=select.value;cache['public-runs']=null;renderPublicRuns();});
+      field.append(select,node('p','이 모드에 해당하는 전력·팬 설정만 묶습니다.','small muted'));
+      card.append(detail('저장 설정 바꾸기',field));grid.append(card);
+    }
+    target.append(grid,node('p','세 모드의 저장 설정을 묶어 한 번에 적용할 수 있습니다. 점수의 측정 시각과 설정은 모드마다 다를 수 있어요.','small muted'));
+  });
+}
 function renderCatalog(){
   const query=$('library-search').value.trim().toLocaleLowerCase(),tokens=query.split(/\s+/).filter(Boolean);
   const entries=(state.catalog?.entries||[]).filter(e=>{
@@ -170,7 +196,7 @@ $('prepare-again').addEventListener('click',()=>{setupExpanded=!setupExpanded;re
 $('cancel-benchmark').addEventListener('click',e=>act(e.currentTarget,async()=>{state.benchmark=await api('/api/benchmark/cancel',{});renderBenchmark();showToast('중단을 요청했어요. 원래 모드로 돌아갈 때까지 기다려 주세요.');schedule();}));
 $('scan-results').addEventListener('click',e=>act(e.currentTarget,async()=>{const r=await api('/api/results/scan',{});await refresh();showToast('지난 기록 '+(r.added||0)+'개를 가져왔어요. 전체 기록에서 확인하세요.');}));
 $('catalog-more').addEventListener('click',()=>{catalogVisible+=18;renderCatalog();});
-$('public-profile').addEventListener('change',()=>{selectedPublic=$('public-profile').value;publicSelection.clear();cache['public-runs']=null;renderPublicRuns();});
+$('public-profile').addEventListener('change',()=>{selectedPublic=$('public-profile').value;publicModeProfiles={};publicExcluded.clear();cache['public-runs']=null;renderPublicRuns();});
 $('community-form').addEventListener('submit',e=>{e.preventDefault();act(e.submitter,prepareShare);});
 $('shutdown-button').addEventListener('click',()=>{const body=node('div',null,'stack');if(isActive()){body.append(node('p','비교를 먼저 중단하고 원래 모드로 돌아온 뒤 종료해 주세요.'));openModal('성능 비교가 진행 중이에요',body);return;}body.append(node('p','트레이 아이콘까지 완전히 종료합니다. 창만 숨기려면 × 버튼을 누르세요.'));openModal('프로그램을 종료할까요?',body,'종료',async()=>{await api('/api/shutdown',{});stopped=true;clearTimeout(pollTimer);$('app-content').hidden=true;$('connection-error').hidden=false;$('connection-error').textContent='프로그램을 종료했습니다.';});});
 $('modal-confirm').addEventListener('click',confirmModal);$('modal-cancel').addEventListener('click',closeModal);$('modal-close').addEventListener('click',closeModal);$('modal').addEventListener('cancel',e=>{e.preventDefault();closeModal();});$('toast-close').addEventListener('click',()=>$('toast').hidden=true);

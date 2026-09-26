@@ -31,7 +31,7 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                 if self.headers.get('Host')!=f'127.0.0.1:{self.server.server_port}' or not hmac.compare_digest(qs.get('session',[''])[0],token):
                     self.send({'error':'실행 파일에서 프로그램을 여세요.'},403); return
                 html=(assets/'web'/'index.html').read_text(encoding='utf-8')
-                for marker, name in {'__APP_STYLE__':'style.css','__SETTINGS_STYLE__':'settings-view.css','__SETTINGS_JS__':'settings-view.js','__SCORE_CARD_JS__':'score-card.js','__APP_JS__':'app.js','__LIBRARY_JS__':'library.js'}.items():
+                for marker, name in {'__APP_STYLE__':'style.css','__SETTINGS_STYLE__':'settings-view.css','__SETTINGS_JS__':'settings-view.js','__SCORE_CARD_JS__':'score-card.js','__SHARE_SELECTION_JS__':'share-selection.js','__APP_JS__':'app.js','__LIBRARY_JS__':'library.js'}.items():
                     if marker in html: html=html.replace(marker,(assets/'web'/name).read_text(encoding='utf-8'))
                 html=html.replace('__SESSION_TOKEN__',token).encode()
                 self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Content-Length',str(len(html)))
@@ -65,7 +65,7 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                 path=urlparse(self.path).path
                 remote_routes={
                     '/api/community/import':lambda:community.import_post(body['id']),
-                    '/api/community/publish':lambda:community.publish(body['profileId'],body.get('runIds',[]),body.get('author','익명'),body['requestId']),
+                    '/api/community/publish':lambda:community.publish(body['profileId'],body.get('runIds',[]),body.get('author','익명'),body['requestId'],body.get('modeProfileIds')),
                     '/api/community/retry':lambda:community.retry(body['requestId']),
                     '/api/community/delete':lambda:community.delete_post(body['id']),
                 }
@@ -102,7 +102,7 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                     '/api/results/link':lambda:lab.link_result(body['id'],body['profileId'],body['mode'],body.get('confirmed',False)),
                     '/api/benchmark/start':lambda:lab.start(body.get('driver','steam'),body.get('cooldownSeconds',120)),
                     '/api/benchmark/cancel':lambda:lab.cancel_run(),
-                    '/api/community/prepare':lambda:lab.share_bundle(body['profileId'],body.get('runIds',[]),body.get('author','익명')),
+                    '/api/community/prepare':lambda:lab.share_bundle(body['profileId'],body.get('runIds',[]),body.get('author','익명'),body.get('modeProfileIds')),
                 }
                 if path=='/api/shutdown':
                     with lab.lock:

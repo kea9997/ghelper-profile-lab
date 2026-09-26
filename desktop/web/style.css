@@ -173,6 +173,9 @@
     #community-form { display: grid; gap: 16px; }
     .share-fields { display: grid; grid-template-columns: 1.25fr 1fr; gap: 13px; }
     .share-result-heading { margin-bottom: 5px; }
+    .share-mode-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .share-mode-grid .result-card { padding: 12px; }
+    .share-mode-grid select { width: 100%; font-size: 11px; }
     #public-runs:empty { display: none; }
     #public-runs .empty { padding: 12px 0; text-align: left; }
     #public-runs .notice { padding: 10px 12px; }
