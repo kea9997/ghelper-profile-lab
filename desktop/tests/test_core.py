@@ -305,6 +305,30 @@ class CoreTests(unittest.TestCase):
         imported = self.lab.import_profile(bundle)
         self.assertEqual(imported['settings'],bundle['profile']['settings'])
 
+    def test_share_metadata_changes_only_public_copy_and_keeps_scores_and_hashes(self):
+        captures=self.mode_captures(); ids={str(m):p['id'] for m,(p,r) in captures.items()}
+        base=captures[2][0]; base['notes']='Private saved note'
+        runs=[r['id'] for p,r in captures.values()]; before=copy.deepcopy(self.lab.db)
+        original=self.lab.share_bundle(base['id'],runs,'User',ids)
+        bundle=self.lab.share_bundle(base['id'],runs,'User',ids,{'name':'  My laptop  ','notes':''})
+        self.assertEqual(bundle['profile']['name'],'My laptop')
+        self.assertEqual(bundle['profile']['notes'],'')
+        self.assertNotIn('Private saved note',json.dumps(bundle))
+        self.assertEqual(bundle['profile']['settingsHash'],original['profile']['settingsHash'])
+        self.assertEqual(bundle['runs'],original['runs'])
+        self.assertEqual(community._bundle(bundle),bundle)
+        self.assertEqual(self.lab.db,before)
+
+    def test_invalid_public_metadata_is_rejected_without_altering_saved_profile(self):
+        p=self.lab.capture('Saved'); before=copy.deepcopy(self.lab.db)
+        for details in ([],{}, {'name':'','notes':''},{'name':' '*3,'notes':''},
+                        {'name':'x'*81,'notes':''},{'name':'x','notes':'x'*2001},
+                        {'name':42,'notes':''},{'name':'x','notes':'a\x00b'},
+                        {'name':'x','notes':'','hardware':{}}):
+            with self.subTest(details=details),self.assertRaises(ValueError):
+                self.lab.share_bundle(p['id'],[],'User',shareDetails=details)
+        self.assertEqual(self.lab.db,before)
+
     def test_three_mode_share_rejects_wrong_settings_foreign_hardware_and_duplicate_modes(self):
         captures = self.mode_captures()
         ids = {str(m): p['id'] for m,(p,r) in captures.items()}

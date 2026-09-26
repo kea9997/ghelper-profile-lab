@@ -421,12 +421,16 @@ class CommunityService:
         self._save_receipts(entries)
         return {"id": id, "createdAt": created_at, "replayed": replayed}
 
-    def publish(self, profile_id, run_ids, author, request_id, mode_profile_ids=None):
+    def publish(self, profile_id, run_ids, author, request_id, mode_profile_ids=None, share_details=None):
         request_id = _uuid(request_id)
         with self.lab.lock:
             try:
-                bundle = _bundle(self.lab.share_bundle(profile_id, run_ids, author, mode_profile_ids)
-                                 if mode_profile_ids is not None else self.lab.share_bundle(profile_id, run_ids, author))
+                args = [profile_id, run_ids, author]
+                if mode_profile_ids is not None or share_details is not None:
+                    args.append(mode_profile_ids)
+                if share_details is not None:
+                    args.append(share_details)
+                bundle = _bundle(self.lab.share_bundle(*args))
             except (ValueError, TypeError, KeyError):
                 raise ValueError("공유할 프리셋과 연결된 정상 결과, 작성자 정보를 확인하세요.") from None
         bundle_hash = hashlib.sha256(_encode(bundle)).hexdigest()

@@ -234,7 +234,7 @@ class Lab:
             r.update({'mode':mode,'profileId':p['id'],'settingsHash':p['settingsHash'],
                       'binding':'manual','manuallyLinkedAt':now()})
             self.save(); return r
-    def share_bundle(self,profileId,runIds,author,modeProfileIds=None):
+    def share_bundle(self,profileId,runIds,author,modeProfileIds=None,shareDetails=None):
         with self.lock:
             p=self.profile(profileId)
             if not isinstance(runIds,list) or len(runIds)>20: raise ValueError('최대 20개의 결과를 선택하세요.')
@@ -253,6 +253,12 @@ class Lab:
                 if not merged: raise ValueError('공유할 저장 설정이 없습니다.')
                 profile={**profile,'name':p['name'][:69]+' · 3개 모드','settings':merged,'settingsHash':digest(merged)}
                 if len(runIds)>3 or len(set(runIds))!=len(runIds): raise ValueError('모드별 점수는 하나씩 선택하세요.')
+            if shareDetails is not None:
+                if not isinstance(shareDetails,dict) or set(shareDetails)!={'name','notes'}:
+                    raise ValueError('공유 제목과 메모를 확인하세요.')
+                name=clean_text(shareDetails['name'],80); notes=clean_text(shareDetails['notes'],2000)
+                if not name: raise ValueError('공유 제목을 입력하세요.')
+                profile={**profile,'name':name,'notes':notes}
             runs=[]
             for id in runIds:
                 r=next((r for r in self.db['runs'] if r['id']==id),None)

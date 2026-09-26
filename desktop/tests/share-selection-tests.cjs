@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {plan} = require('../web/share-selection.js');
+const {plan, defaultBase} = require('../web/share-selection.js');
 const hardware = {model: 'Test laptop', cpu: 'Test CPU', gpu: ['Test GPU'], bios: '1', ram_gb: 32};
 const profiles = [2, 0, 1].map(mode => ({id: 'p' + mode, origin: 'local', hardware, settingsHash: 'hash' + mode,
   settings: {['limit_total_' + mode]: 25 + mode}, createdAt: '2026-09-26T00:00:00Z'}));
@@ -41,4 +41,14 @@ test('latest results use absolute time and inputs remain unchanged', () => {
   plan(profiles, rows, profiles[0]);
   assert.deepEqual({profiles, rows}, original);
   assert.deepEqual(plan([], [], null).map(m => m.profile), [null, null, null]);
+});
+
+test('opening share chooses the latest local save on this machine rather than an imported or foreign preset', () => {
+  const newer = {...profiles[0], id: 'newer', createdAt: '2026-09-26T01:00:00Z'};
+  const imported = {...newer, id: 'imported', origin: 'imported', createdAt: '2026-09-26T02:00:00Z'};
+  const foreign = {...newer, id: 'foreign', hardware: {...hardware, model: 'Other'}, createdAt: '2026-09-27T00:00:00Z'};
+  assert.equal(defaultBase([foreign, imported, ...profiles, newer], hardware).id, 'newer');
+  assert.equal(defaultBase([foreign, imported], hardware).id, 'imported');
+  assert.equal(defaultBase([foreign], hardware), null);
+  assert.equal(defaultBase([], hardware), null);
 });

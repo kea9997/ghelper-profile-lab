@@ -65,7 +65,7 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                 path=urlparse(self.path).path
                 remote_routes={
                     '/api/community/import':lambda:community.import_post(body['id']),
-                    '/api/community/publish':lambda:community.publish(body['profileId'],body.get('runIds',[]),body.get('author','익명'),body['requestId'],body.get('modeProfileIds')),
+                    '/api/community/publish':lambda:community.publish(body['profileId'],body.get('runIds',[]),body.get('author','익명'),body['requestId'],body.get('modeProfileIds'),body.get('shareDetails')),
                     '/api/community/retry':lambda:community.retry(body['requestId']),
                     '/api/community/delete':lambda:community.delete_post(body['id']),
                 }
@@ -102,7 +102,7 @@ def create_server(lab, assets, token, port=0, closing=None, on_shutdown=None, co
                     '/api/results/link':lambda:lab.link_result(body['id'],body['profileId'],body['mode'],body.get('confirmed',False)),
                     '/api/benchmark/start':lambda:lab.start(body.get('driver','steam'),body.get('cooldownSeconds',120)),
                     '/api/benchmark/cancel':lambda:lab.cancel_run(),
-                    '/api/community/prepare':lambda:lab.share_bundle(body['profileId'],body.get('runIds',[]),body.get('author','익명'),body.get('modeProfileIds')),
+                    '/api/community/prepare':lambda:lab.share_bundle(body['profileId'],body.get('runIds',[]),body.get('author','익명'),body.get('modeProfileIds'),body.get('shareDetails')),
                 }
                 if path=='/api/shutdown':
                     with lab.lock:

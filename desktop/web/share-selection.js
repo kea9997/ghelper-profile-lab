@@ -9,6 +9,11 @@
   const stamp = row => Number.isFinite(Date.parse(row.createdAt)) ? Date.parse(row.createdAt) : 0;
   const sameHardware = (a, b) => a && b && ['manufacturer', 'model', 'cpu', 'gpu', 'ram_gb', 'bios']
     .every(key => JSON.stringify(a[key]) === JSON.stringify(b[key]));
+  function defaultBase(profiles, hardware) {
+    const compatible = [...(profiles || [])].filter(p => sameHardware(p.hardware, hardware))
+      .sort((a, b) => stamp(b) - stamp(a));
+    return compatible.find(p => p.origin === 'local') || compatible[0] || null;
+  }
   function eligible(run, profile, mode) {
     return profile && run.mode === mode && ['captured', 'manual'].includes(run.binding) &&
       run.status === 'valid' && run.settingsHash && run.settingsHash === profile.settingsHash &&
@@ -29,5 +34,5 @@
       return {...mode, candidates, profile, run};
     });
   }
-  return {plan};
+  return {plan, defaultBase};
 });

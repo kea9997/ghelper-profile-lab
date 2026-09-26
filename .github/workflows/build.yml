@@ -62,7 +62,7 @@ jobs:
         run: node --test desktop/tests/score-card-tests.cjs
 
       - name: Run three-mode share selection tests
-        run: node --test desktop/tests/share-selection-tests.cjs
+        run: node --test desktop/tests/share-selection-tests.cjs desktop/tests/share-flow-tests.cjs
 
       - name: Build executable and ZIP
         run: ./scripts/build.ps1 -PythonExecutable python

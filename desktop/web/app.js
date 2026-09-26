@@ -31,7 +31,23 @@ function accept(s){if(!s?.hardware||!s?.discovery)throw Error('노트북 정보�
 function schedule(){clearTimeout(pollTimer);if(!stopped)pollTimer=setTimeout(()=>refresh(false,true),isActive()?2500:15000);}
 async function refresh(force=false,silent=false){if(refreshing||stopped)return;refreshing=true;try{accept(await api(force?'/api/refresh':'/api/state',force?{}:undefined));}catch(e){$('loading').hidden=true;$('connection-error').textContent='프로그램과 연결이 끊겼습니다. 실행 파일을 다시 열어 주세요.';$('connection-error').hidden=false;if(!silent)report(e);}finally{refreshing=false;schedule();}}
 function memo(id,value,draw){const v=JSON.stringify(value);if(cache[id]===v)return;cache[id]=v;const target=$(id),opened=new Set([...target.querySelectorAll('details[open][data-key]')].map(e=>e.dataset.key));target.replaceChildren();draw(target);target.querySelectorAll('details[data-key]').forEach(e=>{if(opened.has(e.dataset.key))e.open=true;});}
-function render(){renderHeader();renderCurrentVisual();renderProfiles();renderBackups();renderBenchmark();renderRuns();renderCommunity();renderLibrary();if(location.hash==='#community')scheduleLibraryLoad();renderCatalog();renderSettings();renderAvailability();}
+function render(){renderHeader();renderHomeModes();renderCurrentVisual();renderProfiles();renderBackups();renderBenchmark();renderRuns();renderCommunity();renderLibrary();if(location.hash==='#community')scheduleLibraryLoad();renderCatalog();renderSettings();renderAvailability();}
+function renderHomeModes(){
+  memo('home-modes',[state.config,state.hardware],target=>{
+    for(const mode of [2,0,1]){
+      const model=ProfileSettings.buildModel(state.config,state.hardware,mode),card=node('article',null,'home-mode-card'),heading=node('div',null,'row between');
+      heading.append(node('h3',modeName(mode)));
+      if(state.config.performance_mode===mode){heading.append(pill('사용 중','good'));card.classList.add('active');}
+      card.append(heading,detailsList([[model.cpu[0].label,model.cpu[0].text],['GPU 전력 조정값',model.gpu.find(m=>m.key==='gpu_power').text]]));
+      card.append(button('설정값 보기',()=>showCurrentSettings(mode),'btn text tiny'));target.append(card);
+    }
+  });
+}
+function showCurrentSettings(mode){
+  const body=node('div',null,'stack'),visual=node('div');
+  body.append(node('p','현재 G-Helper에 저장된 값입니다. 값을 바꾸려면 G-Helper에서 조정한 뒤 「현재 설정 저장」을 눌러 주세요.','small muted'),visual);
+  ProfileSettings.render(visual,state.config,state.hardware,{mode});openModal(modeName(mode)+' 설정',body);
+}
 function renderHeader(){const d=state.discovery;let model=state.hardware.model||'내 노트북';model=model.replace(/^ROG /,'').replace(/_(GU|GA|GZ)\w+$/,'');$('device-summary').textContent=model+' · 현재 '+modeName(state.config?.performance_mode);$('connection-status').textContent=d.config_verified?'설정 연결됨':'연결 확인 필요';$('connection-status').className='status-pill '+(d.config_verified?'good':'warn');$('app-version').textContent='v'+(state.appVersion||'확인 불가');$('update-button').textContent=updateInfo?.available?'새 버전 v'+updateInfo.latestVersion:'업데이트 확인';$('update-button').classList.toggle('has-update',!!updateInfo?.available);let hint='';if(!d.config_verified)hint='설정을 찾지 못했어요. 위의 「도움말 · 설정」에서 연결을 확인해 주세요.';else if(isActive())hint='성능을 비교하는 중입니다. 끝난 뒤 설정을 저장하거나 적용할 수 있어요.';$('home-hint').hidden=!hint;$('home-hint').textContent=hint;}
 async function checkForUpdates(showDialog=true){if(updateChecking)return;updateChecking=true;const btn=$('update-button');btn.disabled=true;const previous=btn.textContent;btn.textContent='확인 중…';try{updateInfo=await api('/api/update/check');if(state)renderHeader();if(showDialog)showUpdateDialog(updateInfo);}catch(e){btn.textContent=previous;if(showDialog)report(e);}finally{updateChecking=false;btn.disabled=false;}}
 function showUpdateDialog(info){const body=node('div',null,'stack');body.append(node('p','현재 v'+info.currentVersion+' · 최신 v'+info.latestVersion));if(info.available){body.append(node('p','새 버전을 내려받아 확인한 뒤 프로그램을 다시 시작합니다. 저장한 설정과 점수는 유지됩니다.'));if(info.notes)body.append(node('p',info.notes,'small muted update-notes'));if(isActive())body.append(notice('성능 비교를 마친 뒤 업데이트할 수 있습니다.'));}else body.append(node('p','현재 최신 버전을 사용 중입니다.'));const link=node('a','GitHub 릴리스 보기 ↗','btn secondary');link.href=safeUrl(info.releaseUrl)||state.releaseUrl;link.target='_blank';link.rel='noopener noreferrer';body.append(link);openModal(info.available?'업데이트가 있습니다':'최신 버전입니다',body,info.available&&!isActive()?'업데이트 설치':'',info.available&&!isActive()?installUpdate:null);}
@@ -40,7 +56,7 @@ function driver(){return document.querySelector('input[name=driver]:checked').va
 function renderAvailability(){if(!state)return;const busy=isActive()||operationPending,d=state.discovery;for(const id of ['quick-save','import-button','scan-results'])$(id).disabled=busy||(id==='quick-save'&&!d.config_verified);$('capture-form').querySelector('button').disabled=busy||!d.config_verified;$('config-form').querySelector('button').disabled=busy;$('start-benchmark').disabled=busy||!d.config_verified||!d.ghelper_running||!(driver()==='enterprise'?d.cli_exe:d.benchmark_exe);$('cancel-benchmark').disabled=!isActive()||operationPending;$('prepare-community').disabled=!(state.profiles||[]).length||operationPending;document.querySelectorAll('[data-apply]').forEach(e=>e.disabled=busy||e.dataset.same==='true');}
 function defaultName(){return '내 설정 · '+new Date().toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});}
 async function saveCurrent(name='',notes=''){const p=await api('/api/profiles/capture',{name:name.trim()||defaultName(),notes:notes.trim()});await refresh();showToast('「'+p.name+'」을 저장했어요. 아래 목록에서 다시 쓸 수 있습니다.');}
-function renderProfiles(){const all=state.profiles||[];$('profile-count').textContent=all.length+'개';memo('profile-list',[all,state.config,state.runs?.map(r=>[r.settingsHash,r.status])],target=>{if(!all.length){const e=node('div',null,'empty');e.append(node('strong','아직 저장한 설정이 없어요'),node('p','지금 쓰는 설정이 마음에 든다면 「현재 설정 저장」을 눌러 두세요.'));target.append(e);return;}const normal=all.filter(p=>p.notes!=='벤치마크 시작 시 자동 저장'),auto=all.filter(p=>p.notes==='벤치마크 시작 시 자동 저장');for(const p of normal)target.append(profileRow(p));if(auto.length){const list=node('div',null,'stack');auto.forEach(p=>list.append(profileRow(p)));target.append(detail('성능 비교 중 자동 저장한 설정 · '+auto.length+'개',list,'auto-profiles'));}});}
+function renderProfiles(){const all=state.profiles||[];$('profile-count').textContent=all.length+'개';memo('profile-list',[all,state.config,state.runs?.map(r=>[r.settingsHash,r.status])],target=>{if(!all.length){const e=node('div',null,'empty');e.append(node('strong','아직 저장한 설정이 없어요'),node('p','지금 쓰는 설정이 마음에 든다면 「현재 설정 저장」을 눌러 두세요.'));target.append(e);return;}const normal=all.filter(p=>p.notes!=='벤치마크 시작 시 자동 저장').sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)),auto=all.filter(p=>p.notes==='벤치마크 시작 시 자동 저장');for(const p of normal.slice(0,3))target.append(profileRow(p));if(normal.length>3){const older=node('div',null,'stack');normal.slice(3).forEach(p=>older.append(profileRow(p)));target.append(detail('이전 저장 설정 '+(normal.length-3)+'개 더 보기',older,'older-profiles'));}if(auto.length){const list=node('div',null,'stack');auto.forEach(p=>list.append(profileRow(p)));target.append(detail('성능 비교 중 자동 저장한 설정 · '+auto.length+'개',list,'auto-profiles'));}});}
 function profileRow(p){const row=node('article',null,'saved-row'),main=node('div',null,'saved-main'),title=node('div',null,'row');title.append(node('h3',p.name));const same=sameSettings(p);if(same)title.append(pill('지금 설정과 같음','good'));main.append(title,node('p',date(p.createdAt)+(p.origin==='imported'?' · 가져온 설정':' · 직접 저장'),'saved-meta'));if(p.notes&&p.notes!=='벤치마크 시작 시 자동 저장')main.append(node('p',p.notes,'small muted'));const actions=node('div',null,'saved-actions');const apply=button(same?'현재 설정':'적용하기',()=>act(apply,()=>openApply(p)),same?'btn secondary':'btn primary');apply.dataset.apply=p.id;apply.dataset.same=String(same);actions.append(apply);const more=node('div',null,'stack');more.append(detailsList([['노트북',p.hardware?.model],['포함된 모드',[2,0,1].filter(m=>Object.keys(p.settings||{}).some(k=>k.endsWith('_'+m))).map(modeName).join(' · ')||'확인 필요']]));const file=button('파일로 내보내기',()=>act(file,async()=>download(await api('/api/profiles/export?id='+encodeURIComponent(p.id),undefined,true),fileName(p.name)+'.json')));more.append(file,detail('기술 정보',node('pre',JSON.stringify({settings:p.settings,settingsHash:p.settingsHash},null,2),'code')));const visual=button('설정 보기',()=>showSavedSettings(p),'btn text');main.append(visual,detail('파일·세부 정보',more,'profile-'+p.id));row.append(main,actions);return row;}
 const settingNames={limit_total:'CPU 총 전력',limit_slow:'CPU 지속 전력',limit_fast:'CPU 순간 전력',limit_cpu:'CPU 전력',auto_apply:'팬 설정 자동 적용',auto_apply_power:'전력 설정 자동 적용',auto_boost:'CPU 부스트',performance:'Windows 전원 설정',gpu_temp:'GPU 목표 온도',gpu_power:'GPU 전력 설정',gpu_boost:'GPU 부스트',gpu_core:'GPU 코어 클럭',gpu_memory:'GPU 메모리 클럭',gpu_clock_limit:'GPU 최대 클럭'};
 function settingLabel(key){const m=key.match(/^(.*)_([012])$/);if(!m)return key;let label=settingNames[m[1]];if(!label&&m[1].startsWith('fan_profile_'))label=({cpu:'CPU 팬',gpu:'GPU 팬',mid:'보조 팬'})[m[1].slice(12)]+' 곡선';return modeName(m[2])+' · '+(label||m[1]);}
@@ -127,6 +143,7 @@ function renderPublicRuns(){
   const base=(state.profiles||[]).find(p=>p.id===$('public-profile').value);
   publicPlan=ShareSelection.plan(state.profiles,state.runs,base,publicModeProfiles);
   publicSelection=new Set(publicPlan.filter(m=>m.run&&!publicExcluded.has(m.run.id)).map(m=>m.run.id));
+  renderShareSummary();
   memo('public-runs',[publicPlan,[...publicSelection]],target=>{
     const grid=node('div',null,'share-mode-grid');
     for(const m of publicPlan){
@@ -135,21 +152,21 @@ function renderPublicRuns(){
       if(r){
         card.append(node('p',date(r.createdAt),'small muted'));
         const label=node('label',null,'check-row'),check=node('input');check.type='checkbox';check.checked=publicSelection.has(r.id);
-        check.addEventListener('change',()=>{if(check.checked){publicExcluded.delete(r.id);publicSelection.add(r.id);}else{publicExcluded.add(r.id);publicSelection.delete(r.id);}});
+        check.addEventListener('change',()=>{if(check.checked){publicExcluded.delete(r.id);publicSelection.add(r.id);}else{publicExcluded.add(r.id);publicSelection.delete(r.id);}renderShareSummary();});
         label.append(check,node('span','점수 함께 공유','small'));card.append(label);
         if(r.binding==='manual')card.append(node('p','직접 연결 · 설정 미검증','small muted'));
       }
-      card.append(node('p',m.profile?.name||'저장 설정 없음','small muted'));
       const field=node('div',null,'field'),select=node('select');select.setAttribute('aria-label',m.name+' 모드의 저장 설정');
       for(const p of m.candidates){const option=node('option',p.name+' · '+date(p.createdAt));option.value=p.id;select.append(option);}
       select.value=m.profile?.id||'';
       select.addEventListener('change',()=>{publicModeProfiles[m.id]=select.value;cache['public-runs']=null;renderPublicRuns();});
-      field.append(select,node('p','이 모드에 해당하는 전력·팬 설정만 묶습니다.','small muted'));
-      card.append(detail('저장 설정 바꾸기',field));grid.append(card);
+      field.append(select,node('p','이 모드의 전력·팬 설정만 사용합니다.','small muted'));
+      card.append(detail('설정 바꾸기',field,'share-mode-'+m.id));grid.append(card);
     }
-    target.append(grid,node('p','세 모드의 저장 설정을 묶어 한 번에 적용할 수 있습니다. 점수의 측정 시각과 설정은 모드마다 다를 수 있어요.','small muted'));
+    target.append(grid);
   });
 }
+function renderShareSummary(){const count=publicSelection.size;$('share-summary').textContent='설정 3개 모드'+(count?' + 점수 '+count+'개':' · 점수 없이 공유')+' → 게시물 하나';}
 function renderCatalog(){
   const query=$('library-search').value.trim().toLocaleLowerCase(),tokens=query.split(/\s+/).filter(Boolean);
   const entries=(state.catalog?.entries||[]).filter(e=>{
@@ -177,10 +194,10 @@ function renderCatalog(){
   });
 }
 function renderSettings(){const h=state.hardware,d=state.discovery;$('hardware-details').replaceChildren(...detailsList([['노트북',h.model],['CPU',h.cpu],['그래픽카드',Array.isArray(h.gpu)?h.gpu.join(' / '):h.gpu],['메모리',number(h.ram_gb)+' GB'],['BIOS',h.bios]]).childNodes);$('connection-details').replaceChildren(...detailsList([['G-Helper',d.ghelper_running?'실행 중':'종료됨'],['버전',d.ghelper_version],['3DMark',d.benchmark_exe?'설치 확인됨':'확인 필요']]).childNodes);const options=$('config-candidates');if(cache.configCandidates!==JSON.stringify(d.config_candidates)){cache.configCandidates=JSON.stringify(d.config_candidates);options.replaceChildren();const o=node('option','직접 경로 입력');o.value='';options.append(o);for(const path of d.config_candidates||[]){const opt=node('option',path);opt.value=path;options.append(opt);}}if(!$('config-path').dataset.dirty&&document.activeElement!==$('config-path'))$('config-path').value=d.config_path||'';$('current-settings').textContent=JSON.stringify(state.config,null,2);}
-function openModal(title,body,confirmText='',action=null){if(!$('modal').open)lastFocus=document.activeElement;dialog={id:++dialogId,action,pending:false};$('modal-title').textContent=title;$('modal-body').replaceChildren(body);$('modal-confirm').hidden=!action;$('modal-confirm').textContent=confirmText;$('modal-confirm').disabled=false;$('modal-cancel').textContent=action?'취소':'닫기';$('modal-cancel').disabled=false;$('modal-close').disabled=false;if(!$('modal').open)$('modal').showModal();}
+function openModal(title,body,confirmText='',action=null,onCancel=null){if(!$('modal').open)lastFocus=document.activeElement;dialog={id:++dialogId,action,onCancel,pending:false};$('modal-title').textContent=title;$('modal-body').replaceChildren(body);$('modal-confirm').hidden=!action;$('modal-confirm').textContent=confirmText;$('modal-confirm').disabled=false;$('modal-cancel').textContent=onCancel?'← 수정하기':action?'취소':'닫기';$('modal-cancel').disabled=false;$('modal-close').disabled=false;if(!$('modal').open)$('modal').showModal();}
 let lastFocus=null;
-function closeModal(){if(dialog?.pending)return;$('modal').close();dialog=null;if(lastFocus?.isConnected)lastFocus.focus();}
-async function confirmModal(){const current=dialog;if(!current?.action||current.pending)return;current.pending=true;const label=$('modal-confirm').textContent;$('modal-confirm').disabled=true;$('modal-confirm').textContent='처리 중…';$('modal-cancel').disabled=true;$('modal-close').disabled=true;try{const result=await current.action();if(dialog?.id===current.id){current.pending=false;if(result!==false)closeModal();}}catch(e){if(dialog?.id===current.id)$('modal-body').prepend(notice(e.message||String(e),'error'));else report(e);}finally{current.pending=false;if(dialog?.id===current.id){$('modal-confirm').textContent=label;$('modal-confirm').disabled=false;$('modal-cancel').disabled=false;$('modal-close').disabled=false;}}}
+function closeModal(cancelled=true){if(dialog?.pending)return;const onCancel=cancelled?dialog?.onCancel:null;$('modal').close();dialog=null;if(lastFocus?.isConnected)lastFocus.focus();if(onCancel)onCancel();}
+async function confirmModal(){const current=dialog;if(!current?.action||current.pending)return;current.pending=true;const label=$('modal-confirm').textContent;$('modal-confirm').disabled=true;$('modal-confirm').textContent='처리 중…';$('modal-cancel').disabled=true;$('modal-close').disabled=true;try{const result=await current.action();if(dialog?.id===current.id){current.pending=false;if(result!==false)closeModal(false);}}catch(e){if(dialog?.id===current.id)$('modal-body').prepend(notice(e.message||String(e),'error'));else report(e);}finally{current.pending=false;if(dialog?.id===current.id){$('modal-confirm').textContent=label;$('modal-confirm').disabled=false;$('modal-cancel').disabled=false;$('modal-close').disabled=false;}}}
 function fileName(v){return String(v||'설정').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,100);}
 function download(blob,name){const url=URL.createObjectURL(blob),a=node('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);showToast('저장 창에서 파일을 저장해 주세요.');}
 $('quick-save').addEventListener('click',e=>act(e.currentTarget,()=>saveCurrent()));

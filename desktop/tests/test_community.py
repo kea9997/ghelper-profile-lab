@@ -67,10 +67,13 @@ class FakeLab:
         self.bundle = public_bundle()
         self.imported = []
 
-    def share_bundle(self, profile_id, run_ids, author):
+    def share_bundle(self, profile_id, run_ids, author, mode_profile_ids=None, share_details=None):
         if not self.lock._is_owned():
             raise AssertionError("Public bundle capture must hold Lab.lock")
-        return copy.deepcopy(self.bundle)
+        bundle=copy.deepcopy(self.bundle)
+        if share_details is not None:
+            bundle['profile'].update(share_details)
+        return bundle
 
     def import_profile(self, profile):
         if not self.lock._is_owned():
@@ -230,6 +233,19 @@ class CommunityTests(unittest.TestCase):
         self.assertNotIn(entry["deleteToken"], request.data.decode())
         self.assertEqual(set(service.owned()[0]), {"requestId", "id", "createdAt", "name", "status"})
         self.assertNotIn(entry["deleteToken"], json.dumps(service.owned()))
+
+    def test_publish_forwards_public_metadata_and_rejects_changed_retry_payload(self):
+        service,transport=self.service(self.success())
+        details={'name':'Public title','notes':''}
+        service.publish('local-profile-id',[],'User',REQUEST_ID,share_details=details)
+        sent=json.loads(transport.requests[0].data)
+        self.assertEqual(sent['profile']['name'],'Public title')
+        self.assertEqual(sent['profile']['notes'],'')
+        self.assertEqual(self.private_entry()['name'],'Public title')
+        self.assertNotEqual(self.lab.bundle['profile']['name'],'Public title')
+        with self.assertRaises(ValueError):
+            service.publish('local-profile-id',[],'User',REQUEST_ID,share_details={**details,'name':'Changed'})
+        self.assertEqual(len(transport.requests),1)
 
     def test_lost_post_response_retries_identical_payload_and_token_after_restart(self):
         service, transport = self.service(TimeoutError("synthetic secret must not escape"))

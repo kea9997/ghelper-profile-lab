@@ -124,7 +124,8 @@ function renderOwned(){
   });
 }
 async function openPublish(){
-  if(!(state.profiles||[]).length){
+  const base=ShareSelection.defaultBase(state.profiles,state.hardware);
+  if(!base){
     openModal('공유할 설정을 먼저 저장해 주세요',node('p','지금 사용 중인 설정을 저장하면 노트북 사양과 함께 공유할 수 있어요.'),'현재 설정 저장',async()=>{
       await saveCurrent();await openPublish();return true;
     });return;
@@ -134,39 +135,46 @@ async function openPublish(){
     openModal('이전 업로드를 먼저 확인해 주세요',node('p','연결이 끊긴 업로드가 있습니다. 중복으로 올리지 않도록 「내가 공유한 설정」에서 다시 확인해 주세요.'),'업로드 확인하기',async()=>{$('owned-details').open=true;$('owned-details').scrollIntoView({behavior:'smooth',block:'center'});});return;
   }
   publicModeProfiles={};publicExcluded.clear();cache['public-runs']=null;
-  renderCommunity();$('publish-modal').showModal();
+  renderCommunity();$('public-profile').value=base.id;selectedPublic=base.id;renderPublicRuns();
+  $('public-name').value=(displayHardware(base.hardware).split(' · ')[0]+' · 3개 모드').slice(0,80);
+  $('public-notes').value='';$('share-options').open=false;
+  $('publish-modal').showModal();
 }
 async function prepareShare(){
+  if(library.owned.some(p=>!p.id))throw Error('이전 게시 요청을 「설정 자료실 → 내가 공유한 설정」에서 먼저 확인해 주세요.');
   const p=state.profiles.find(p=>p.id===$('public-profile').value);
   if(!p)throw Error('공유할 설정을 먼저 저장해 주세요.');
   const profileId=p.id,runIds=[...publicSelection],author=$('public-author').value.trim()||'익명';
   const modeProfileIds=Object.fromEntries(publicPlan.map(m=>[String(m.id),m.profile?.id]));
-  const payload=await api('/api/community/prepare',{profileId,runIds,author,modeProfileIds});
+  const shareDetails={name:$('public-name').value.trim(),notes:$('public-notes').value.trim()};
+  if(!shareDetails.name)throw Error('공유 제목을 입력해 주세요.');
+  const payload=await api('/api/community/prepare',{profileId,runIds,author,modeProfileIds,shareDetails});
   const body=node('div',null,'stack');
-  body.append(node('p','아래 내용을 공개 자료실에 올립니다.'),detailsList([['설정',payload.profile.name],['작성자',payload.author],['제품명',displayHardware(payload.profile.hardware)],['모델 코드',payload.profile.hardware.model],['함께 올릴 점수',payload.runs.length+'개'],['메모',payload.profile.notes||'없음']]));
+  body.append(node('h3',payload.profile.name),node('p',displayHardware(payload.profile.hardware),'small muted'),node('p','작성자 '+payload.author+' · 설정 3개 모드 · 점수 '+payload.runs.length+'개','small'));
+  if(payload.profile.notes)body.append(node('p',payload.profile.notes,'share-note'));
   if(payload.runs.length)body.append(scoreStrip(payload.runs));
-  body.append(node('p','조용·균형·터보의 저장 설정을 한 게시물에 묶습니다. 각 점수는 해당 모드를 측정할 때의 설정과 연결되어 있으며, 측정 시각은 서로 다를 수 있습니다.','small muted'));
+  body.append(node('p','세 모드가 한 게시물로 올라갑니다. 점수의 측정 시각과 설정은 모드마다 다를 수 있어요.','small muted'));
   if(payload.runs.some(r=>r.notes?.startsWith('[직접 연결 · 측정 당시 설정 미검증]')))body.append(notice('직접 연결한 점수는 측정 당시 설정을 앱에서 검증하지 못했습니다. 게시물의 측정 메모에 이 사실이 표시됩니다.'));
   for(const r of payload.runs)if(r.notes)body.append(node('p',modeName(r.mode)+' 측정 메모: '+r.notes,'small'));
-  body.append(notice('공개하고 싶지 않은 이름이나 메모가 없는지 확인해 주세요.'));
+  body.append(node('p','제목·메모에 공개하고 싶지 않은 내용이 없는지 확인해 주세요.','small muted'));
   const visual=node('div');body.append(detail('공유할 설정 보기',visual));ProfileSettings.render(visual,payload.profile.settings,payload.profile.hardware,{mode:payload.profile.activeMode??0,compact:true});
   body.append(detail('공개되는 전체 내용',node('pre',JSON.stringify(payload,null,2),'code')));
   $('publish-modal').close();
   const requestId=crypto.randomUUID();
-  openModal('이 내용을 공유할까요?',body,'자료실에 게시',async()=>{
+  openModal('마지막으로 확인해 주세요',body,'3개 모드 한 번에 공유',async()=>{
     try{
-      await api('/api/community/publish',{profileId,runIds,author,requestId,modeProfileIds});
+      await api('/api/community/publish',{profileId,runIds,author,requestId,modeProfileIds,shareDetails});
       library.loaded=false;await loadLibrary();
       openModal('자료실에 올렸어요',node('p','다른 사용자가 프로그램 안에서 확인하고 적용할 수 있습니다. 「내가 공유한 설정」에서 게시를 취소할 수 있어요.'));return false;
     }catch(e){await loadOwned();throw e;}
-  });
+  },()=>$('publish-modal').showModal());
 }
 function initLibrary(){
   $('library-refresh').addEventListener('click',()=>loadLibrary());
   $('library-more').addEventListener('click',()=>loadLibrary(true));
   $('library-search').addEventListener('input',()=>{clearTimeout(librarySearchTimer);catalogVisible=18;renderCatalog();if($('library-search').value.trim())$('catalog-details').open=true;renderLibrary();librarySearchTimer=setTimeout(()=>{library.posts=[];library.cursor=null;library.loaded=false;loadLibrary();},350);});
   $('library-compatible').addEventListener('change',resetLibraryFilter);
-  $('open-publish').addEventListener('click',()=>openPublish().catch(report));
+  for(const id of ['open-publish','home-share','benchmark-share'])$(id).addEventListener('click',e=>act(e.currentTarget,openPublish));
   $('publish-close').addEventListener('click',()=>$('publish-modal').close());
   $('owned-details').addEventListener('toggle',()=>{if($('owned-details').open)loadOwned();});
 }

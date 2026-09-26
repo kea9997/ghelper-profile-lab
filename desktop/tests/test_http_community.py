@@ -22,11 +22,12 @@ class FakeLab:
     def active(self):
         return False
 
-    def share_bundle(self, profile_id, run_ids, author, mode_profile_ids=None):
+    def share_bundle(self, profile_id, run_ids, author, mode_profile_ids=None, share_details=None):
         if not self.lock._is_owned():
             raise AssertionError("Local prepare must preserve the Lab lock")
         result = {"profileId": profile_id, "runIds": run_ids, "author": author}
         if mode_profile_ids is not None: result['modeProfileIds']=mode_profile_ids
+        if share_details is not None: result['shareDetails']=share_details
         return result
 
 
@@ -57,9 +58,10 @@ class FakeCommunity:
     def import_post(self, id):
         return self.invoke("import_post", (id,), {"id": "new-local-profile", "origin": "imported"})
 
-    def publish(self, profile_id, run_ids, author, request_id, mode_profile_ids=None):
+    def publish(self, profile_id, run_ids, author, request_id, mode_profile_ids=None, share_details=None):
         args = (profile_id, run_ids, author, request_id)
         if mode_profile_ids is not None: args += (mode_profile_ids,)
+        if share_details is not None: args += (share_details,)
         return self.invoke("publish", args, {"id": POST_ID, "createdAt": "test-time"})
 
     def retry(self, request_id):
@@ -236,6 +238,17 @@ class HttpCommunityTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(raw), payload)
         self.assertEqual(self.community.calls, [])
+
+    def test_public_title_and_notes_are_identical_in_prepare_and_publish(self):
+        mapping={'2':'quiet','0':'balanced','1':'turbo'}
+        details={'name':'My three modes','notes':'Public notes only'}
+        body={'profileId':'base','runIds':[],'author':'User','modeProfileIds':mapping,'shareDetails':details}
+        status,_,raw=self.request('POST','/api/community/prepare',body)
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(raw)['shareDetails'],details)
+        status,_,_=self.request('POST','/api/community/publish',{**body,'requestId':REQUEST_ID})
+        self.assertEqual(status,200)
+        self.assertEqual(self.community.calls[-1],('publish',('base',[],'User',REQUEST_ID,mapping,details)))
 
 
 if __name__ == "__main__":
