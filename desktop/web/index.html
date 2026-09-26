@@ -79,12 +79,13 @@ __SETTINGS_STYLE__</style>
             <p id="driver-note" class="small muted">설치된 3DMark를 확인해 실행 방법을 안내할게요.</p>
             <ol class="steps" aria-label="성능 비교 순서">
               <li data-step="1"><strong>전원 연결</strong>충전기를 연결하고 준비해요.</li>
-              <li data-step="2"><strong>안내에 따라 실행</strong>3DMark에서 Time Spy를 실행해요.</li>
+              <li data-step="2"><strong>Time Spy 자동 실행</strong>Steam판 3DMark에서도 앱이 실행해요.</li>
               <li data-step="3"><strong>점수 자동 저장</strong>세 가지 모드의 결과를 모아요.</li>
             </ol>
             <details id="benchmark-options">
               <summary>고급 실행 옵션</summary>
-              <label class="radio-card"><input type="radio" name="driver" value="guided" checked><span><strong>안내에 따라 직접 실행</strong><small>각 모드가 준비되면 3DMark에서 Time Spy를 실행합니다.</small></span></label>
+              <label class="radio-card"><input type="radio" name="driver" value="steam" checked><span><strong>Steam판 자동 실행 · 권장</strong><small>각 모드에서 Time Spy 기본 테스트를 자동으로 선택하고 실행합니다.</small></span></label>
+              <label class="radio-card"><input type="radio" name="driver" value="guided"><span><strong>직접 실행 · 예비 방법</strong><small>3DMark 화면이 바뀌어 자동 선택이 실패할 때 사용합니다.</small></span></label>
               <label class="radio-card"><input type="radio" name="driver" value="enterprise"><span><strong>완전 자동 실행 · Enterprise 전용</strong><small>일반 Steam판에는 공식 명령줄 실행 기능이 없습니다. 선택하면 이 컴퓨터에서 사용할 수 있는지 안내합니다.</small></span></label>
               <p class="small muted">모드 사이에는 120초 동안 냉각을 기다립니다.</p>
             </details>

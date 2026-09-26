@@ -98,7 +98,9 @@ class BenchmarkTests(unittest.TestCase):
         self.actions.append(("switch", mode))
         self.update_fake_config(performance_mode=mode)
 
-    def launch_fake_benchmark(self, driver, discovery, output_path):
+    def launch_fake_benchmark(self, driver, discovery, output_path, cancel_event=None):
+        if driver == "steam":
+            self.assertIs(cancel_event, self.event)
         self.launch_count += 1
         self.poll_in_run = 0
         self.actions.append(("launch", driver))
@@ -152,6 +154,21 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(self.lab.benchmark["status"], "complete")
         self.assertEqual(len(self.lab.db["runs"]), 3)
         self.assertEqual(self.launch_count, 3)
+
+    def test_steam_auto_launches_each_mode_and_requires_observed_engine(self):
+        self.mock_get_benchmark_running.side_effect = lambda: self.poll_in_run == 1
+        self.execute("steam")
+        self.assertEqual(self.lab.benchmark["status"], "complete")
+        self.assertEqual([action for action in self.actions if action[0] == "launch"],
+                         [("launch", "steam")] * 3)
+        self.assertEqual(len(self.lab.db["runs"]), 3)
+
+    def test_steam_launcher_only_install_fails_before_mode_change(self):
+        self.lab.discovery["benchmark_exe"] = str(self.root / "3DMarkLauncher.exe")
+        with self.assertRaisesRegex(ValueError, "3DMark.exe"):
+            self.lab.start("steam", 30)
+        self.assertFalse(self.journal.exists())
+        self.mock_switch.assert_not_called()
 
     def test_guided_does_not_bind_new_result_without_engine_observation(self):
         self.clock_step = 500  # Bounded simulated timeout; no wall-clock waiting.

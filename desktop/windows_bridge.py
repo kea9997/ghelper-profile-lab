@@ -446,21 +446,27 @@ def switch_mode(mode: int, config_path: str, timeout: float = 12) -> None:
     raise RuntimeError("설정 파일에서 모드 변경을 확인하지 못했습니다. G-Helper 상태와 권한 수준을 확인하세요.")
 
 
-def start_benchmark(driver: str, discovery: dict, output_path: str) -> subprocess.Popen | None:
-    if driver not in {"guided", "enterprise"}:
+def start_benchmark(driver: str, discovery: dict, output_path: str, cancel_event=None) -> subprocess.Popen | None:
+    if driver not in {"steam", "guided", "enterprise"}:
         raise ValueError("지원하지 않는 벤치마크 실행 방식입니다.")
     if get_benchmark_running():
         raise RuntimeError("Time Spy가 실행 중입니다. 완료 후 다시 시작하세요.")
-    key = "benchmark_exe" if driver == "guided" else "cli_exe"
+    key = "benchmark_exe" if driver in {"steam", "guided"} else "cli_exe"
     raw = discovery.get(key)
     if not isinstance(raw, str) or not raw:
         raise RuntimeError("3DMark 실행 파일을 찾지 못했습니다.")
     executable = Path(raw)
-    allowed = {"3dmark.exe", "3dmarklauncher.exe"} if driver == "guided" else {"3dmarkcmd.exe"}
+    allowed = {"3dmark.exe", "3dmarklauncher.exe"} if driver in {"steam", "guided"} else {"3dmarkcmd.exe"}
     if not executable.is_absolute() or not executable.is_file() or executable.name.lower() not in allowed:
         raise RuntimeError("검증된 3DMark 실행 파일이 필요합니다.")
     if driver == "guided":
         subprocess.Popen([str(executable)], cwd=str(executable.parent), creationflags=CREATE_NO_WINDOW)
+        return None
+    if driver == "steam":
+        if executable.name.lower() != "3dmark.exe":
+            raise RuntimeError("Steam판 자동 실행에는 3DMark.exe가 필요합니다.")
+        from steam_ui import launch_timespy
+        launch_timespy(str(executable), cancel_event=cancel_event)
         return None
     output = Path(output_path)
     if not output.is_absolute() or output.suffix.lower() != ".3dmark-result" or not output.parent.is_dir() or output.exists():

@@ -171,6 +171,16 @@ class BridgeTests(unittest.TestCase):
             self.assertIsNone(bridge.start_benchmark("guided", {"benchmark_exe": str(exe)}, "unused"))
             self.assertEqual(popen.call_args.args[0], [str(exe)])
 
+    def test_steam_runs_installed_ui_without_enterprise_cli(self):
+        exe = self.root / "3DMark.exe"
+        exe.touch()
+        with patch.object(bridge, "get_benchmark_running", return_value=False), \
+             patch("steam_ui.launch_timespy") as launch, \
+             patch.object(bridge.subprocess, "Popen") as popen:
+            self.assertIsNone(bridge.start_benchmark("steam", {"benchmark_exe": str(exe)}, "unused"))
+            launch.assert_called_once_with(str(exe), cancel_event=None)
+            popen.assert_not_called()
+
     def test_enterprise_uses_official_fixed_arguments(self):
         exe = self.root / "3DMarkCmd.exe"
         exe.touch()

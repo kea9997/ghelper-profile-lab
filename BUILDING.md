@@ -54,4 +54,4 @@ Python 실행 파일을 지정할 수도 있습니다.
 
 자료실의 운영 주소는 `https://ghelper.optiwork.co.kr`입니다. API 구현·스키마·요청 제한은 [api/README.md](api/README.md)에 있습니다. 로컬 API 테스트는 Node의 SQLite로 SQL과 트랜잭션을 검증합니다. 실계정의 D1 ID·도메인·배포 권한은 운영 담당자가 별도로 관리합니다.
 
-빌드 옵션은 [PyInstaller 공식 문서](https://pyinstaller.org/en/stable/usage.html)를 기준으로 합니다. 외부 의존성의 고지는 [desktop/THIRD-PARTY-LICENSES.txt](desktop/THIRD-PARTY-LICENSES.txt)와 [desktop/PYTHON-LICENSE.txt](desktop/PYTHON-LICENSE.txt)를 함께 배포합니다.
+빌드 옵션은 [PyInstaller 공식 문서](https://pyinstaller.org/en/stable/usage.html)를 기준으로 합니다. 외부 의존성의 고지는 [desktop/THIRD-PARTY-LICENSES.txt](desktop/THIRD-PARTY-LICENSES.txt), [desktop/STEAM-UI-LICENSES.txt](desktop/STEAM-UI-LICENSES.txt), [desktop/PYTHON-LICENSE.txt](desktop/PYTHON-LICENSE.txt)를 함께 배포합니다.

@@ -251,12 +251,14 @@ class Lab:
     def start(self,driver,cooldownSeconds):
         with self.lock:
             self.require_idle()
-            if driver not in ('guided','enterprise'): raise ValueError('실행 방식을 선택하세요.')
+            if driver not in ('steam','guided','enterprise'): raise ValueError('실행 방식을 선택하세요.')
             if not self.verified(): raise ValueError('G-Helper 설정 경로를 먼저 확인하세요.')
             if bridge.ac_connected() is not True: raise ValueError('충전기 연결을 확인할 수 없습니다. 연결 후 다시 시도하세요.')
             if bridge.get_benchmark_running(): raise ValueError('이미 실행 중인 벤치마크가 있습니다.')
             if not bridge.ghelper_running(): raise ValueError('G-Helper를 먼저 실행하세요.')
-            if driver=='enterprise' and not self.discovery.get('cli_exe'): raise ValueError('공식 Enterprise CLI를 찾을 수 없습니다. Steam판은 실행 보조를 선택하세요.')
+            if driver=='enterprise' and not self.discovery.get('cli_exe'): raise ValueError('공식 Enterprise CLI를 찾을 수 없습니다. Steam판 자동 실행을 선택하세요.')
+            if driver in ('steam','guided') and not self.discovery.get('benchmark_exe'): raise ValueError('3DMark 설치를 찾지 못했습니다.')
+            if driver=='steam' and Path(self.discovery['benchmark_exe']).name.lower()!='3dmark.exe': raise ValueError('Steam판 자동 실행에는 3DMark.exe가 필요합니다. 직접 실행을 선택하세요.')
             if type(cooldownSeconds) is not int or not 30<=cooldownSeconds<=600: raise ValueError('대기 시간은 30~600초로 지정하세요.')
             original=self.config().get('performance_mode')
             if original not in MODES: raise ValueError('기본 조용/균형/터보 모드에서 시작하세요.')
@@ -280,8 +282,10 @@ class Lab:
                 with self.lock: profile=self._capture(MODES[mode]+' · '+datetime.now().strftime('%m/%d %H:%M'),'벤치마크 시작 시 자동 저장')
                 before={str(p):(p.stat().st_mtime_ns,p.stat().st_size) for p in self.result_files()}
                 out=self.data/'results'/f'{uuid.uuid4().hex}.3dmark-result'; out.parent.mkdir(exist_ok=True)
-                proc=bridge.start_benchmark(driver,self.discovery,str(out))
-                self._status(status='waiting',cooldownUntil=None,engineRunning=False,message=('3DMark에서 Time Spy 기본 테스트의 실행 버튼을 눌러주세요. 결과 저장 후 다음 모드로 진행합니다.' if driver=='guided' else 'Time Spy 실행 중 · 결과를 기다립니다.'))
+                self._status(status='waiting',cooldownUntil=None,engineRunning=False,message=('3DMark에서 Time Spy 기본 테스트를 자동으로 여는 중입니다.' if driver=='steam' else '3DMark에서 Time Spy 기본 테스트의 실행 버튼을 눌러주세요.' if driver=='guided' else 'Time Spy 실행 중 · 결과를 기다립니다.'))
+                proc=(bridge.start_benchmark(driver,self.discovery,str(out),cancel_event=self.cancel)
+                      if driver=='steam' else bridge.start_benchmark(driver,self.discovery,str(out)))
+                self._status(message='Time Spy 실행 중 · 결과를 기다립니다.' if driver!='guided' else '3DMark에서 Time Spy 기본 테스트의 실행 버튼을 눌러주세요. 결과 저장 후 다음 모드로 진행합니다.')
                 deadline=time.monotonic()+1800; result=None; stable={}; saw_engine=False
                 while time.monotonic()<deadline:
                     if self.cancel.wait(2): break
@@ -297,7 +301,7 @@ class Lab:
                         stat=p.stat(); sig=(stat.st_mtime_ns,stat.st_size)
                         if str(p) in before and before[str(p)]==sig: continue
                         if stable.get(str(p))!=sig: stable[str(p)]=sig; continue
-                        if engine_running or (driver=='guided' and not saw_engine): continue
+                        if engine_running or (driver in ('steam','guided') and not saw_engine): continue
                         c=self.config()
                         if c.get('performance_mode')!=mode or digest(tuning(c))!=profile['settingsHash']: raise ValueError('테스트 도중 모드 또는 설정이 바뀌었습니다. 결과를 설정과 연결하지 않습니다.')
                         try:

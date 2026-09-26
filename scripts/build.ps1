@@ -33,6 +33,7 @@ $requiredFiles = @(
     (Join-Path $desktopPath 'app.ico'),
     (Join-Path $desktopPath 'web\index.html'),
     (Join-Path $desktopPath 'THIRD-PARTY-LICENSES.txt'),
+    (Join-Path $desktopPath 'STEAM-UI-LICENSES.txt'),
     (Join-Path $desktopPath 'PYTHON-LICENSE.txt'),
     (Join-Path $repositoryRoot 'README.md')
 )
@@ -56,6 +57,10 @@ Invoke-PythonChecked -Executable $venvPython -Arguments @(
     '-r', (Join-Path $desktopPath 'requirements.txt'),
     ('pyinstaller=={0}' -f $pyInstallerVersion)
 )
+$uiautomationDll = Join-Path $venvPath 'Lib\site-packages\uiautomation\bin\UIAutomationClient_VC140_X64.dll'
+if (-not (Test-Path -LiteralPath $uiautomationDll -PathType Leaf)) {
+    throw 'The uiautomation x64 DLL is missing from the build environment.'
+}
 
 # A new build directory avoids cleanup/deletion and stale intermediate artifacts.
 $buildId = [System.Guid]::NewGuid().ToString('N')
@@ -73,6 +78,7 @@ $bundleArguments = @(
     '--add-data', ('{0};web' -f (Join-Path $desktopPath 'web')),
     '--add-data', ('{0};.' -f (Join-Path $desktopPath 'catalog.json')),
     '--add-data', ('{0};.' -f (Join-Path $desktopPath 'app.ico')),
+    '--add-binary', ('{0};uiautomation/bin' -f $uiautomationDll),
     '--hidden-import', 'webview.platforms.winforms',
     '--hidden-import', 'webview.platforms.edgechromium',
     '--hidden-import', 'pystray._win32',
@@ -94,6 +100,7 @@ $packageFiles = @(
     [pscustomobject]@{ Source = $hashPath; Entry = 'SHA256SUMS.txt' },
     [pscustomobject]@{ Source = (Join-Path $repositoryRoot 'README.md'); Entry = 'README.md' },
     [pscustomobject]@{ Source = (Join-Path $desktopPath 'THIRD-PARTY-LICENSES.txt'); Entry = 'licenses/THIRD-PARTY-LICENSES.txt' },
+    [pscustomobject]@{ Source = (Join-Path $desktopPath 'STEAM-UI-LICENSES.txt'); Entry = 'licenses/STEAM-UI-LICENSES.txt' },
     [pscustomobject]@{ Source = (Join-Path $desktopPath 'PYTHON-LICENSE.txt'); Entry = 'licenses/PYTHON-LICENSE.txt' }
 )
 foreach ($document in Get-ChildItem -LiteralPath $desktopPath -Filter '*.md' -File) {

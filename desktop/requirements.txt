@@ -1,3 +1,7 @@
 pywebview==6.2.1
 pystray==0.19.5
 Pillow==12.3.0
+uiautomation==2.0.29
+opencv-python-headless==5.0.0.93
+comtypes==1.4.17
+numpy==2.5.3

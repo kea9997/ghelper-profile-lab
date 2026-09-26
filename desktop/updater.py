@@ -16,7 +16,7 @@ import urllib.request
 import uuid
 
 
-APP_VERSION = '0.4.2'
+APP_VERSION = '0.4.3'
 REPOSITORY = 'kea9997/ghelper-profile-lab'
 RELEASE_API = f'https://api.github.com/repos/{REPOSITORY}/releases/latest'
 RELEASE_PAGE = f'https://github.com/{REPOSITORY}/releases/latest'
